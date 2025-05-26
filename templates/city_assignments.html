@@ -1,0 +1,79 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}City Assignments{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">City Assignments</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Assignment Form -->
+                    <form method="POST" action="{{ url_for('city_assignments') }}" class="mb-4">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <label for="employee_id" class="form-label">Finance Personnel</label>
+                                <select class="form-select" id="employee_id" name="employee_id" required>
+                                    <option value="">Select Finance Personnel</option>
+                                    {% for employee in finance_personnel %}
+                                    <option value="{{ employee.id }}">{{ employee.name }} ({{ employee.email }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="city" class="form-label">City</label>
+                                <select class="form-select" id="city" name="city" required>
+                                    <option value="">Select City</option>
+                                    {% for city in cities %}
+                                    <option value="{{ city }}">{{ city }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">Assign</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Assignments Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Finance Personnel</th>
+                                    <th>Email</th>
+                                    <th>City</th>
+                                    <th>Assigned By</th>
+                                    <th>Assigned On</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr>
+                                    <td>{{ assignment.employee.name }}</td>
+                                    <td>{{ assignment.employee.email }}</td>
+                                    <td>{{ assignment.city }}</td>
+                                    <td>{{ assignment.assigned_by_employee.name if assignment.assigned_by_employee else 'System' }}</td>
+                                    <td>{{ assignment.assigned_on.strftime('%d-%m-%Y') }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('toggle_city_assignment', assignment_id=assignment.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i> Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+            line-height: 1.5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        .header p {
+            margin: 5px 0;
+            color: #7f8c8d;
+        }
+        .info-section {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .info-item {
+            margin-bottom: 10px;
+        }
+        .info-item strong {
+            display: inline-block;
+            width: 150px;
+            color: #2c3e50;
+        }
+        .expenses-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        .expenses-table th {
+            background-color: #2c3e50;
+            color: white;
+            text-align: left;
+            padding: 10px;
+        }
+        .expenses-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .expenses-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #eee !important;
+        }
+        .amount-in-words {
+            margin-top: 20px;
+            font-style: italic;
+            color: #555;
+        }
+        .signature-section {
+            margin-top: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .signature-box {
+            border-top: 1px solid #333;
+            padding-top: 10px;
+            text-align: center;
+        }
+        @media print {
+            body {
+                margin: 0;
+                padding: 15px;
+            }
+            .expenses-table th {
+                background-color: #2c3e50 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .expenses-table tr:nth-child(even) {
+                background-color: #f2f2f2 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Expense Report</h1>
+        <p>Date: {{ current_date }}</p>
+    </div>
+
+    <div class="info-section">
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Employee ID:</strong> {{ employee_id }}
+            </div>
+            <div class="info-item">
+                <strong>Employee Name:</strong> {{ employee_name }}
+            </div>
+            <div class="info-item">
+                <strong>Cost Center:</strong> {{ cost_center }}
+            </div>
+            <div class="info-item">
+                <strong>Expense Type:</strong> {{ expense_type }}
+            </div>
+            <div class="info-item">
+                <strong>From Date:</strong> {{ from_date }}
+            </div>
+            <div class="info-item">
+                <strong>To Date:</strong> {{ to_date }}
+            </div>
+        </div>
+    </div>
+
+    <h2>Expense Details</h2>
+    <table class="expenses-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Expense Head</th>
+                <th>Description</th>
+                <th>Amount (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for expense in expenses %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ expense.invoice_date }}</td>
+                <td>{{ expense.expense_head }}</td>
+                <td>{{ expense.description }}</td>
+                <td align="right">{{ expense.amount }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="4" align="right">Total:</td>
+                <td align="right">₹{{ total_amount }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="amount-in-words">
+        <strong>Amount in words:</strong> {{ amount_in_words }}
+    </div>
+
+    <div class="signature-section">
+        <div class="signature-box">
+            <p>Employee Signature</p>
+        </div>
+        <div class="signature-box">
+            <p>Approved By</p>
+        </div>
+    </div>
+</body>
+</html>

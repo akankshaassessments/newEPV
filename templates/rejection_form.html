@@ -1,0 +1,54 @@
+{% extends 'base_salesforce.html' %}
+
+{% block title %}Reject Expense{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Reject Expense</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>Expense Details</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>EPV ID:</strong> {{ epv.epv_id }}</p>
+                                <p><strong>Employee:</strong> {{ epv.employee_name }} ({{ epv.employee_id }})</p>
+                                <p><strong>Date Range:</strong> {{ epv.from_date }} to {{ epv.to_date }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total Amount:</strong> ₹{{ epv.total_amount }}</p>
+                                <p><strong>Submitted On:</strong> {{ epv.submission_date.strftime('%Y-%m-%d') if epv.submission_date else 'N/A' }}</p>
+                                <p><strong>Cost Center:</strong> {{ epv.cost_center }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form action="{{ url_for('process_rejection', epv_id=epv.epv_id) }}" method="POST">
+                        <input type="hidden" name="token" value="{{ token }}">
+                        <input type="hidden" name="email" value="{{ approver_email }}">
+
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for Rejection <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="reason" name="reason" rows="4" required></textarea>
+                            <div class="form-text">Please provide a detailed reason for rejecting this expense.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times me-2"></i> Reject Expense
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

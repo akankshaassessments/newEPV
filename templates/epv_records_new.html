@@ -1,0 +1,398 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}EPV Records - Expense Portal{% endblock %}
+
+{% block additional_styles %}
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .status-submitted {
+        background-color: var(--sf-blue);
+        color: white;
+    }
+    .status-approved {
+        background-color: var(--sf-success);
+        color: white;
+    }
+    .status-rejected {
+        background-color: var(--sf-error);
+        color: white;
+    }
+    .status-pending, .status-pending_approval {
+        background-color: var(--sf-warning);
+        color: var(--sf-text);
+    }
+    .status-partially-approved {
+        background-color: #6c757d; /* Bootstrap secondary color */
+        color: white;
+    }
+    .search-box {
+        position: relative;
+    }
+    .search-box .form-control {
+        padding-left: 2.5rem;
+    }
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--sf-neutral-dark);
+    }
+    .stat-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .stat-card h3 {
+        font-size: 1.8rem;
+        font-weight: 600;
+    }
+    .stat-card p {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    /* Split Invoice Styling */
+    .master-invoice {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+
+    .sub-invoice {
+        background-color: rgba(13, 202, 240, 0.05);
+        margin-left: 20px;
+    }
+
+    .sub-invoice td:first-child {
+        position: relative;
+    }
+
+    .sub-invoice td:first-child:before {
+        content: '↳';
+        position: absolute;
+        left: -15px;
+        color: #6c757d;
+    }
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-4 pt-3">
+        <!-- Filters -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body p-3">
+                        <form id="epvFilters" method="GET" action="{{ url_for('epv_records', view=view_mode) }}" class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label for="expenseHeadFilter" class="form-label">Expense Head</label>
+                                <select class="form-select filter-select" id="expenseHeadFilter" name="expense_head">
+                                    <option value="">All Expense Heads</option>
+                                    {% for head in expense_heads %}
+                                    <option value="{{ head.head_name }}" {% if selected_expense_head == head.head_name %}selected{% endif %}>{{ head.head_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-{% if is_finance_user %}2{% else %}3{% endif %}">
+                                <label for="costCenterFilter" class="form-label">Cost Center</label>
+                                <select class="form-select filter-select" id="costCenterFilter" name="cost_center">
+                                    <option value="">All Cost Centers</option>
+                                    {% for center in cost_centers %}
+                                    <option value="{{ center.costcenter }}" {% if selected_cost_center == center.costcenter %}selected{% endif %}>{{ center.costcenter }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% if is_finance_user %}
+                            <div class="col-md-2">
+                                <label for="cityFilter" class="form-label">City</label>
+                                <select class="form-select filter-select" id="cityFilter" name="city">
+                                    <option value="">All Cities</option>
+                                    {% for city in cities %}
+                                    <option value="{{ city }}" {% if selected_city == city %}selected{% endif %}>{{ city }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endif %}
+                            <div class="col-md-2">
+                                <label for="statusFilter" class="form-label">Status</label>
+                                <select class="form-select filter-select" id="statusFilter" name="status">
+                                    <option value="">All Statuses</option>
+                                    <option value="pending_approval" {% if selected_status == 'pending_approval' %}selected{% endif %}>Pending Approval</option>
+                                    <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
+                                    <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Rejected</option>
+                                    <option value="Finance Processing" {% if selected_status == 'Finance Processing' %}selected{% endif %}>Finance Processing</option>
+                                    <option value="Finance Approval Pending" {% if selected_status == 'Finance Approval Pending' %}selected{% endif %}>Finance Approval Pending</option>
+                                    <option value="Processed" {% if selected_status == 'Processed' %}selected{% endif %}>Processed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="timePeriodFilter" class="form-label">Time Period</label>
+                                <select class="form-select filter-select" id="timePeriodFilter" name="time_period">
+                                    <option value="all" {% if selected_time_period == 'all' or not selected_time_period %}selected{% endif %}>All Time</option>
+                                    <option value="this_month" {% if selected_time_period == 'this_month' %}selected{% endif %}>This Month</option>
+                                    <option value="last_month" {% if selected_time_period == 'last_month' %}selected{% endif %}>Last Month</option>
+                                    <option value="this_year" {% if selected_time_period == 'this_year' %}selected{% endif %}>This Year</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" id="resetFiltersBtn" class="btn btn-outline-secondary w-100" title="Reset Filters">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="text-primary mb-0">{{ scorecard_data.total_records }}</h3>
+                        <p class="mb-0">Total Records</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="text-warning mb-0">{{ scorecard_data.pending_count }}</h3>
+                        <p class="mb-0">Pending</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="text-success mb-0">{{ scorecard_data.approved_count }}</h3>
+                        <p class="mb-0">Approved</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="text-info mb-0">{{ scorecard_data.total_amount }}</h3>
+                        <p class="mb-0">Total Amount</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-invoice me-2"></i>
+                            {% if view_mode == 'my_expenses' %}
+                                My Expenses
+                            {% else %}
+                                EPV Records
+                            {% endif %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>EPV ID</th>
+                                        <th>Employee</th>
+                                        <th>Submission Date</th>
+                                        <th>Cost Center</th>
+                                        <th>Total Amount</th>
+                                        <th>Manager Approval</th>
+                                        <th>Finance Processing</th>
+                                        <th>Finance Approval</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in records %}
+                                    {% if record.invoice_type != 'sub' %}
+                                    <tr class="{% if record.invoice_type == 'master' %}master-invoice{% endif %}">
+                                        <td>
+                                            {{ record.epv_id }}
+                                            {% if record.invoice_type == 'master' %}
+                                                <span class="badge bg-primary">Master</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ record.employee_name }}</td>
+                                        <td>{{ record.submission_date.strftime('%d-%m-%Y') }}</td>
+                                        <td>
+                                            {% if record.cost_center_name %}
+                                                {{ record.cost_center_name }}
+                                            {% elif record.invoice_type == 'master' %}
+                                                <span class="text-muted">Split Invoice</span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>₹{{ record.total_amount }}</td>
+                                        <!-- Manager Approval Status -->
+                                        <td>
+                                            {% if record.status == 'rejected' and record.rejection_reason and record.rejection_reason.startswith('[FINANCE REJECTION]') %}
+                                                <span class="status-badge status-approved" data-bs-toggle="tooltip" title="Rejected by Finance, not Manager">
+                                                    Approved
+                                                </span>
+                                            {% else %}
+                                                <span class="status-badge status-{{ record.status.lower() }}">
+                                                    {% if record.status == 'pending_approval' %}
+                                                        Pending
+                                                    {% elif record.status == 'approved' %}
+                                                        Approved
+                                                    {% elif record.status == 'rejected' %}
+                                                        Rejected
+                                                    {% elif record.status == 'submitted' %}
+                                                        Submitted
+                                                    {% else %}
+                                                        {{ record.status|title }}
+                                                    {% endif %}
+                                                </span>
+                                            {% endif %}
+                                            <div class="small text-muted mt-1">
+                                                {% if record.status == 'approved' and record.approved_on %}
+                                                    {{ record.approved_on.strftime('%d-%m-%Y %H:%M') }}
+                                                {% elif record.status == 'rejected' and record.rejected_on %}
+                                                    {{ record.rejected_on.strftime('%d-%m-%Y %H:%M') }}
+                                                {% endif %}
+                                            </div>
+                                        </td>
+
+                                        <!-- Finance Processing Status -->
+                                        <td>
+                                            {% if record.finance_status == 'pending' or record.finance_status == None %}
+                                                <span class="status-badge status-pending_approval">Pending</span>
+                                            {% elif record.finance_status == 'processed' %}
+                                                <span class="status-badge status-processed">Processed</span>
+                                                <div class="small text-muted mt-1">
+                                                    {% if record.finance_entry and record.finance_entry.entry_date %}
+                                                        {{ record.finance_entry.entry_date.strftime('%d-%m-%Y %H:%M') }}
+                                                    {% endif %}
+                                                </div>
+                                            {% elif record.finance_status == 'rejected' or (record.status == 'rejected' and record.rejection_reason and record.rejection_reason.startswith('[FINANCE REJECTION]')) %}
+                                                <span class="status-badge status-rejected">Rejected</span>
+                                                {% if record.rejection_reason and record.rejection_reason.startswith('[FINANCE REJECTION]') %}
+                                                    <span class="d-none">{{ record.rejection_reason }}</span>
+                                                {% endif %}
+                                                <div class="small text-muted mt-1">
+                                                    {% if record.rejected_on %}
+                                                        {{ record.rejected_on.strftime('%d-%m-%Y %H:%M') }}
+                                                    {% endif %}
+                                                </div>
+                                            {% elif record.finance_status == 'pending_documents' %}
+                                                <span class="status-badge status-pending_approval">Documents Requested</span>
+                                            {% else %}
+                                                <span class="status-badge">N/A</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- Finance Approval Status -->
+                                        <td>
+                                            {% if record.status == 'approved' and record.finance_status == 'processed' %}
+                                                {% if record.finance_entry and record.finance_entry.status == 'pending' %}
+                                                    <span class="status-badge status-pending_approval">Pending</span>
+                                                {% elif record.finance_entry and record.finance_entry.status == 'approved' %}
+                                                    <span class="status-badge status-approved">Approved</span>
+                                                    <div class="small text-muted mt-1">
+                                                        {% if record.finance_entry and record.finance_entry.approved_on %}
+                                                            {{ record.finance_entry.approved_on.strftime('%d-%m-%Y %H:%M') }}
+                                                        {% endif %}
+                                                    </div>
+                                                {% elif record.finance_entry and record.finance_entry.status == 'rejected' %}
+                                                    <span class="status-badge status-rejected">Rejected</span>
+                                                    <div class="small text-muted mt-1">
+                                                        {% if record.finance_entry and record.finance_entry.approved_on %}
+                                                            {{ record.finance_entry.approved_on.strftime('%d-%m-%Y %H:%M') }}
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <span class="status-badge status-pending_approval">Pending</span>
+                                                {% endif %}
+                                            {% elif record.finance_status == 'approved' %}
+                                                <span class="status-badge status-approved">Approved</span>
+                                            {% else %}
+                                                <span class="status-badge">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-2">
+                                                <a href="{{ url_for('epv_record', epv_id=record.epv_id) }}" class="btn btn-sm btn-primary" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if record.file_url %}
+                                                <a href="{{ record.file_url }}" target="_blank" class="btn btn-sm btn-success" title="View in Google Drive">
+                                                    <i class="fas fa-cloud"></i>
+                                                </a>
+                                                {% elif record.drive_file_id %}
+                                                <a href="https://drive.google.com/file/d/{{ record.drive_file_id }}/view?usp=drivesdk" target="_blank" class="btn btn-sm btn-success" title="View in Google Drive">
+                                                    <i class="fas fa-cloud"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // Handle filter changes
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-submit form when any filter changes
+            const filterSelects = document.querySelectorAll('.filter-select');
+            filterSelects.forEach(select => {
+                select.addEventListener('change', function() {
+                    // Add a small delay to prevent multiple submissions if multiple filters change
+                    setTimeout(() => {
+                        document.getElementById('epvFilters').submit();
+                    }, 100);
+                });
+            });
+
+            // Reset filters button
+            document.getElementById('resetFiltersBtn').addEventListener('click', function() {
+                const filterSelects = document.querySelectorAll('.filter-select');
+                filterSelects.forEach(select => {
+                    // Reset to default values
+                    if (select.id === 'timePeriodFilter') {
+                        select.value = 'all'; // Default time period is "All Time"
+                    } else {
+                        select.value = ''; // Default for other filters is empty (all)
+                    }
+                });
+
+                // Submit the form after resetting filters
+                document.getElementById('epvFilters').submit();
+            });
+
+            // Add debug logging for form submission
+            const form = document.getElementById('epvFilters');
+            form.addEventListener('submit', function(event) {
+                console.log('Form submitted with values:');
+                const formData = new FormData(form);
+                for (let pair of formData.entries()) {
+                    console.log(pair[0] + ': ' + pair[1]);
+                }
+            });
+        });
+    </script>
+{% endblock %}

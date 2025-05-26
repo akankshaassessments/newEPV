@@ -1,0 +1,83 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Cost Center - Expense Portal{% endblock %}
+
+{% block additional_styles %}
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .card-header {
+        font-weight: 500;
+    }
+{% endblock %}
+
+{% block content %}
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-{% if is_new %}plus{% else %}edit{% endif %} me-2"></i>
+                            {% if is_new %}Add New{% else %}Edit{% endif %} Cost Center
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            {% if is_new %}
+                            <div class="form-group">
+                                <label for="costcenter" class="form-label">Cost Center Name</label>
+                                <input type="text" class="form-control" id="costcenter" name="costcenter" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" class="form-control" id="city" name="city" required>
+                            </div>
+                            {% else %}
+                            <div class="form-group">
+                                <label class="form-label">Cost Center Name</label>
+                                <input type="text" class="form-control" value="{{ cost_center.costcenter }}" disabled>
+                                <div class="form-text text-muted">Cost center name cannot be changed</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">City</label>
+                                <input type="text" class="form-control" value="{{ cost_center.city }}" disabled>
+                                <div class="form-text text-muted">City cannot be changed</div>
+                            </div>
+                            {% endif %}
+                            <div class="form-group">
+                                <label for="approver_email" class="form-label">Approver Email</label>
+                                <input type="email" class="form-control" id="approver_email" name="approver_email"
+                                       value="{{ cost_center.approver_email if not is_new else '' }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="drive_id" class="form-label">Google Drive Folder ID</label>
+                                <input type="text" class="form-control" id="drive_id" name="drive_id"
+                                       value="{{ cost_center.drive_id if not is_new else '' }}">
+                                <div class="form-text text-muted">ID of the Google Drive folder where expense files will be stored</div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                           {% if not is_new and cost_center.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">Active</label>
+                                </div>
+                                <div class="form-text text-muted">Inactive cost centers won't appear in dropdown menus</div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-4">
+                                <a href="{{ url_for('cost_centers') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i> Back to Cost Centers
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i> {% if is_new %}Create{% else %}Update{% endif %} Cost Center
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+{% endblock %}

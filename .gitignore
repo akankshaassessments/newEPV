@@ -1,0 +1,90 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Database
+*.db
+instance/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Local configuration
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Uploads and temporary files
+uploads/
+pdf_uploads/
+*.pdf
+*.jpeg
+*.jpg
+*.png
+*.gif
+
+# SSL certificates
+*.pem
+*.crt
+*.key
+
+# Service account files
+service-account.json
+*.json
+
+# Test directory (if not needed in production)
+Test/
+
+# Migration scripts (keep only if needed)
+migrations/
+
+# Cache files
+*.pyc
+*.pyo
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+
+# Local development files
+cert.pem
+key.pem

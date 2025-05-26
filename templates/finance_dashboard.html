@@ -1,0 +1,921 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Finance Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Finance Dashboard</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs mb-4" id="financeTabs" role="tablist">
+                        {% if session.get('employee_role') == 'Finance' %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="true">
+                                <i class="fas fa-clock me-1"></i> For Approval
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="resubmitted-tab" data-bs-toggle="tab" data-bs-target="#resubmitted" type="button" role="tab" aria-controls="resubmitted" aria-selected="false">
+                                <i class="fas fa-redo me-1"></i> Resubmitted
+                                {% if resubmitted_epvs|length > 0 %}
+                                <span class="badge bg-danger ms-1">{{ resubmitted_epvs|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="pending-payment-tab" data-bs-toggle="tab" data-bs-target="#pending-payment" type="button" role="tab" aria-controls="pending-payment" aria-selected="false">
+                                <i class="fas fa-money-bill-wave me-1"></i> Pending Payment Details
+                                {% if pending_payment_epvs|length > 0 %}
+                                <span class="badge bg-warning ms-1">{{ pending_payment_epvs|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected" type="button" role="tab" aria-controls="rejected" aria-selected="false">
+                                <i class="fas fa-times-circle me-1"></i> Rejected
+                                {% if rejected_epvs|length > 0 %}
+                                <span class="badge bg-danger ms-1">{{ rejected_epvs|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="processed-tab" data-bs-toggle="tab" data-bs-target="#processed" type="button" role="tab" aria-controls="processed" aria-selected="false">
+                                <i class="fas fa-check-circle me-1"></i> Already Processed
+                            </button>
+                        </li>
+                        {% else %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pending-approval-tab" data-bs-toggle="tab" data-bs-target="#pending-approval" type="button" role="tab" aria-controls="pending-approval" aria-selected="true">
+                                <i class="fas fa-clock me-1"></i> For Approval
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="approved-rejected-tab" data-bs-toggle="tab" data-bs-target="#approved-rejected" type="button" role="tab" aria-controls="approved-rejected" aria-selected="false">
+                                <i class="fas fa-history me-1"></i> Already Approved/Rejected
+                            </button>
+                        </li>
+                        {% endif %}
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="financeTabsContent">
+                        {% if session.get('employee_role') == 'Finance' %}
+                        <!-- Pending Tab (Finance Personnel) -->
+                        <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="pendingCityFilter" class="form-label">City</label>
+                                    <select class="form-select city-filter" id="pendingCityFilter">
+                                        <option value="">All Cities</option>
+                                        <!-- Add city options dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pendingDateFilter" class="form-label">Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control date-start" id="pendingDateStart"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" class="form-control date-end" id="pendingDateEnd"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pendingSearchInput" class="form-label">Search</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control search-input" id="pendingSearchInput"
+                                               placeholder="Search EPV ID, Employee, Cost Center...">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary reset-filters" data-target="pending">Reset Filters</button>
+                                </div>
+                            </div>
+
+                            <!-- Pending EPVs Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>EPV ID</th>
+                                            <th>Employee</th>
+                                            <th>Cost Center</th>
+                                            <th>City</th>
+                                            <th>Submission Date</th>
+                                            <th>Total Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for epv in pending_epvs %}
+                                        <tr {% if epv.is_locked %}class="table-warning"{% endif %}>
+                                            <td>{{ epv.epv_id }}</td>
+                                            <td>{{ epv.employee_name }}</td>
+                                            <td>{{ epv.cost_center_name }}</td>
+                                            <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
+                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>
+                                                {% if epv.is_locked %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-lock me-1"></i> Being processed by {{ epv.locked_by.name }}
+                                                        <small class="d-block mt-1">Will unlock in {{ epv.lock_time_remaining }} min</small>
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-success">Available</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if epv.is_locked %}
+                                                    <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                {% else %}
+                                                    <div class="d-flex">
+                                                        <a href="{{ url_for('finance_entry', epv_id=epv.epv_id) }}" class="btn btn-sm btn-primary me-1" title="Process">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Resubmitted Tab (Finance Personnel) -->
+                        <div class="tab-pane fade" id="resubmitted" role="tabpanel" aria-labelledby="resubmitted-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="resubmittedCityFilter" class="form-label">City</label>
+                                    <select class="form-select city-filter" id="resubmittedCityFilter">
+                                        <option value="">All Cities</option>
+                                        <!-- Add city options dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="resubmittedDateFilter" class="form-label">Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control date-start" id="resubmittedDateStart"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" class="form-control date-end" id="resubmittedDateEnd"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="resubmittedSearchInput" class="form-label">Search</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control search-input" id="resubmittedSearchInput"
+                                               placeholder="Search EPV ID, Employee, Cost Center...">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary reset-filters" data-target="resubmitted">Reset Filters</button>
+                                </div>
+                            </div>
+
+                            <!-- Resubmitted EPVs Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>EPV ID</th>
+                                            <th>Employee</th>
+                                            <th>Cost Center</th>
+                                            <th>City</th>
+                                            <th>Submission Date</th>
+                                            <th>Total Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for epv in resubmitted_epvs %}
+                                        <tr {% if epv.is_locked %}class="table-warning"{% endif %}>
+                                            <td>{{ epv.epv_id }}</td>
+                                            <td>{{ epv.employee_name }}</td>
+                                            <td>{{ epv.cost_center_name }}</td>
+                                            <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
+                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    <i class="fas fa-redo me-1"></i> Resubmitted
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if epv.is_locked %}
+                                                    <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                {% else %}
+                                                    <div class="d-flex">
+                                                        <a href="{{ url_for('finance_entry', epv_id=epv.epv_id) }}" class="btn btn-sm btn-primary me-1" title="Process">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Pending Payment Details Tab (Finance Personnel) -->
+                        <div class="tab-pane fade" id="pending-payment" role="tabpanel" aria-labelledby="pending-payment-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="pendingPaymentCityFilter" class="form-label">City</label>
+                                    <select class="form-select city-filter" id="pendingPaymentCityFilter">
+                                        <option value="">All Cities</option>
+                                        <!-- Add city options dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pendingPaymentDateFilter" class="form-label">Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control date-start" id="pendingPaymentDateStart"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" class="form-control date-end" id="pendingPaymentDateEnd"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pendingPaymentSearchInput" class="form-label">Search</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control search-input" id="pendingPaymentSearchInput"
+                                               placeholder="Search EPV ID, Employee, Cost Center...">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary reset-filters" data-target="pending-payment">Reset Filters</button>
+                                </div>
+                            </div>
+
+                            <!-- Pending Payment EPVs Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>EPV ID</th>
+                                            <th>Employee</th>
+                                            <th>Cost Center</th>
+                                            <th>City</th>
+                                            <th>Submission Date</th>
+                                            <th>Total Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for epv in pending_payment_epvs %}
+                                        <tr>
+                                            <td>{{ epv.epv_id }}</td>
+                                            <td>{{ epv.employee_name }}</td>
+                                            <td>{{ epv.cost_center_name }}</td>
+                                            <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
+                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-money-bill-wave me-1"></i> Payment Pending
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex">
+                                                    <a href="{{ url_for('update_payment_details', entry_id=epv.finance_entry.id) }}" class="btn btn-sm btn-primary me-1" title="Update Payment Details">
+                                                        <i class="fas fa-money-bill-wave"></i>
+                                                    </a>
+                                                    <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Rejected Tab (Finance Personnel) -->
+                        <div class="tab-pane fade" id="rejected" role="tabpanel" aria-labelledby="rejected-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="rejectedCityFilter" class="form-label">City</label>
+                                    <select class="form-select city-filter" id="rejectedCityFilter">
+                                        <option value="">All Cities</option>
+                                        <!-- Add city options dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="rejectedDateFilter" class="form-label">Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control date-start" id="rejectedDateStart"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" class="form-control date-end" id="rejectedDateEnd"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="rejectedSearchInput" class="form-label">Search</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control search-input" id="rejectedSearchInput"
+                                               placeholder="Search EPV ID, Employee, Cost Center...">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary reset-filters" data-target="rejected">Reset Filters</button>
+                                </div>
+                            </div>
+
+                            <!-- Rejected EPVs Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>EPV ID</th>
+                                            <th>Employee</th>
+                                            <th>Cost Center</th>
+                                            <th>City</th>
+                                            <th>Submission Date</th>
+                                            <th>Total Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for epv in rejected_epvs %}
+                                        <tr>
+                                            <td>{{ epv.epv_id }}</td>
+                                            <td>{{ epv.employee_name }}</td>
+                                            <td>{{ epv.cost_center_name }}</td>
+                                            <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
+                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times-circle me-1"></i> Rejected
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Processed Tab (Finance Personnel) -->
+                        <div class="tab-pane fade" id="processed" role="tabpanel" aria-labelledby="processed-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="processedCityFilter" class="form-label">City</label>
+                                    <select class="form-select city-filter" id="processedCityFilter">
+                                        <option value="">All Cities</option>
+                                        <!-- Add city options dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="processedDateFilter" class="form-label">Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control date-start" id="processedDateStart"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" class="form-control date-end" id="processedDateEnd"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="processedStatusFilter" class="form-label">Status</label>
+                                    <select class="form-select status-filter" id="processedStatusFilter">
+                                        <option value="">All Statuses</option>
+                                        <option value="pending">Pending Approval</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="processedSearchInput" class="form-label">Search</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control search-input" id="processedSearchInput"
+                                               placeholder="Search EPV ID, Employee, Cost Center...">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary reset-filters" data-target="processed">Reset Filters</button>
+                                </div>
+                            </div>
+
+                            <!-- Processed EPVs Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>EPV ID</th>
+                                            <th>Employee</th>
+                                            <th>Cost Center</th>
+                                            <th>City</th>
+                                            <th>Processed Date</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in processed_entries %}
+                                        <tr>
+                                            <td>{{ entry.epv.epv_id }}</td>
+                                            <td>{{ entry.epv.employee_name }}</td>
+                                            <td>{{ entry.epv.cost_center_name }}</td>
+                                            <td>{{ entry.epv.city if entry.epv.city else (entry.epv.cost_center.city if entry.epv.cost_center else 'N/A') }}</td>
+                                            <td>{{ entry.entry_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>₹{{ entry.amount|round(2) }}</td>
+                                            <td>
+                                                {% if entry.status == 'pending' %}
+                                                <span class="badge bg-warning">Pending Approval</span>
+                                                {% elif entry.status == 'approved' %}
+                                                <span class="badge bg-success">Approved</span>
+                                                {% elif entry.status == 'rejected' %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex">
+                                                    {% if entry.status == 'approved' %}
+                                                    <a href="{{ url_for('update_payment_details', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-1" title="Update Payment Details">
+                                                        <i class="fas fa-money-bill"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Pending Approval Tab (Finance Approver) -->
+                        <div class="tab-pane fade show active" id="pending-approval" role="tabpanel" aria-labelledby="pending-approval-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="approvalCityFilter" class="form-label">City</label>
+                                    <select class="form-select city-filter" id="approvalCityFilter">
+                                        <option value="">All Cities</option>
+                                        <!-- Add city options dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="approvalDateFilter" class="form-label">Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control date-start" id="approvalDateStart"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" class="form-control date-end" id="approvalDateEnd"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="approvalSearchInput" class="form-label">Search</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control search-input" id="approvalSearchInput"
+                                               placeholder="Search EPV ID, Employee, Cost Center...">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary reset-filters" data-target="pending-approval">Reset Filters</button>
+                                </div>
+                            </div>
+
+                            <!-- Pending Approval EPVs Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>EPV ID</th>
+                                            <th>Employee</th>
+                                            <th>Cost Center</th>
+                                            <th>City</th>
+                                            <th>Processed By</th>
+                                            <th>Processed Date</th>
+                                            <th>Amount</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in pending_approval_entries %}
+                                        <tr>
+                                            <td>{{ entry.epv.epv_id }}</td>
+                                            <td>{{ entry.epv.employee_name }}</td>
+                                            <td>{{ entry.epv.cost_center_name }}</td>
+                                            <td>{{ entry.epv.city if entry.epv.city else (entry.epv.cost_center.city if entry.epv.cost_center else "N/A") }}</td>
+                                            <td>{{ entry.finance_user.name }}</td>
+                                            <td>{{ entry.entry_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>₹{{ entry.amount|round(2) }}</td>
+                                            <td>
+                                                <div class="d-flex">
+                                                    <a href="{{ url_for('finance_approval', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-1" title="Review">
+                                                        <i class="fas fa-check"></i>
+                                                    </a>
+                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Approved/Rejected Tab (Finance Approver) -->
+                        <div class="tab-pane fade" id="approved-rejected" role="tabpanel" aria-labelledby="approved-rejected-tab">
+                            <!-- Filters -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <label for="historyStatusFilter" class="form-label">Status</label>
+                                    <select class="form-select status-filter" id="historyStatusFilter">
+                                        <option value="">All Statuses</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="historyCityFilter" class="form-label">City</label>
+                                    <select class="form-select city-filter" id="historyCityFilter">
+                                        <option value="">All Cities</option>
+                                        <!-- Add city options dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="historyDateFilter" class="form-label">Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" class="form-control date-start" id="historyDateStart"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" class="form-control date-end" id="historyDateEnd"
+                                               value="{{ today.strftime('%Y-%m-%d') }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary reset-filters" data-target="approved-rejected">Reset Filters</button>
+                                </div>
+                            </div>
+
+                            <!-- Approved/Rejected EPVs Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>EPV ID</th>
+                                            <th>Employee</th>
+                                            <th>Cost Center</th>
+                                            <th>City</th>
+                                            <th>Processed By</th>
+                                            <th>Decision Date</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in approved_rejected_entries %}
+                                        <tr>
+                                            <td>{{ entry.epv.epv_id }}</td>
+                                            <td>{{ entry.epv.employee_name }}</td>
+                                            <td>{{ entry.epv.cost_center_name if entry.epv.cost_center else 'N/A' }}</td>
+                                            <td>{{ entry.epv.cost_center.city if entry.epv.cost_center else "N/A" }}</td>
+                                            <td>{{ entry.finance_user.name }}</td>
+                                            <td>{{ entry.approved_on.strftime('%d-%m-%Y') if entry.approved_on else '' }}</td>
+                                            <td>₹{{ entry.amount|round(2) }}</td>
+                                            <td>
+                                                {% if entry.status == 'approved' %}
+                                                <span class="badge bg-success">Approved</span>
+                                                {% elif entry.status == 'rejected' %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex">
+                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all tabs
+        const tabs = document.querySelectorAll('[data-bs-toggle="tab"]');
+        let activeTabId = document.querySelector('.tab-pane.active').id;
+        let lastUpdateTime = new Date();
+
+        // Initialize filters for each tab
+        function initializeFilters(tabId) {
+            const tabPane = document.getElementById(tabId);
+            if (!tabPane) return;
+
+            // Get filter elements
+            const cityFilter = tabPane.querySelector('.city-filter');
+            const dateFilter = tabPane.querySelector('.date-filter');
+            const statusFilter = tabPane.querySelector('.status-filter');
+            const resetFiltersBtn = tabPane.querySelector('.reset-filters');
+            const tableRows = tabPane.querySelectorAll('tbody tr');
+
+            // Populate city filter with unique cities
+            if (cityFilter && cityFilter.options.length <= 1) { // Only populate if not already populated
+                const cities = new Set();
+                tableRows.forEach(row => {
+                    // City is usually in the 4th column (index 3)
+                    const cityCell = row.querySelector('td:nth-child(4)');
+                    if (cityCell) {
+                        const city = cityCell.textContent.trim();
+                        if (city) cities.add(city);
+                    }
+                });
+
+                // Sort cities alphabetically
+                const sortedCities = Array.from(cities).sort();
+
+                sortedCities.forEach(city => {
+                    // Check if this city already exists in the dropdown
+                    let exists = false;
+                    for (let i = 0; i < cityFilter.options.length; i++) {
+                        if (cityFilter.options[i].value === city) {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    // Only add if it doesn't exist
+                    if (!exists) {
+                        const option = document.createElement('option');
+                        option.value = city;
+                        option.textContent = city;
+                        cityFilter.appendChild(option);
+                    }
+                });
+            }
+
+            // Filter function
+            function applyFilters() {
+                const cityValue = cityFilter ? cityFilter.value.toLowerCase() : '';
+                const statusValue = statusFilter ? statusFilter.value.toLowerCase() : '';
+
+                // Get date range inputs
+                const dateStartInput = tabPane.querySelector('.date-start');
+                const dateEndInput = tabPane.querySelector('.date-end');
+
+                // Get search input
+                const searchInput = tabPane.querySelector('.search-input');
+                const searchValue = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+                // Parse date values
+                const startDate = dateStartInput && dateStartInput.value ? new Date(dateStartInput.value) : null;
+                const endDate = dateEndInput && dateEndInput.value ? new Date(dateEndInput.value) : null;
+
+                // Add one day to end date to include the end date in the range
+                if (endDate) {
+                    endDate.setDate(endDate.getDate() + 1);
+                }
+
+                console.log(`Applying filters - City: ${cityValue}, Status: ${statusValue}, Search: ${searchValue}, Date Range: ${startDate} to ${endDate}`);
+
+                tableRows.forEach(row => {
+                    // Get cell values for filters
+                    const cityCell = row.querySelector('td:nth-child(4)');
+                    const dateCell = row.querySelector('td:nth-child(5)'); // Date is usually in the 5th column
+                    const statusCell = row.querySelector('.badge'); // Status is in a badge element
+
+                    const city = cityCell ? cityCell.textContent.trim().toLowerCase() : '';
+                    const dateText = dateCell ? dateCell.textContent.trim() : '';
+                    const status = statusCell ? statusCell.textContent.trim().toLowerCase() : '';
+
+                    // Parse the date from DD-MM-YYYY format
+                    const dateParts = dateText.split('-');
+                    const rowDate = dateParts.length === 3 ?
+                        new Date(dateParts[2], dateParts[1] - 1, dateParts[0]) : new Date();
+
+                    let showRow = true;
+
+                    // Apply city filter
+                    if (cityFilter && cityValue && city !== cityValue) {
+                        showRow = false;
+                    }
+
+                    // Apply date range filter
+                    if (startDate && endDate) {
+                        if (rowDate < startDate || rowDate >= endDate) {
+                            showRow = false;
+                        }
+                    }
+
+                    // Apply status filter
+                    if (statusFilter && statusValue && status && !status.includes(statusValue)) {
+                        showRow = false;
+                    }
+
+                    // Apply search filter - completely new implementation
+                    if (searchValue) {
+                        // Get the entire row's text content
+                        const rowText = row.innerText || row.textContent;
+                        const rowTextLower = rowText.toLowerCase();
+
+                        // Simple direct string comparison
+                        if (rowTextLower.indexOf(searchValue) === -1) {
+                            showRow = false;
+
+
+                        }
+                    }
+
+                    // Apply the visibility
+                    row.style.display = showRow ? '' : 'none';
+                });
+
+
+            }
+
+            // Add event listeners
+            if (cityFilter) cityFilter.addEventListener('change', applyFilters);
+            if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+
+            // Add event listeners for date inputs
+            const dateStartInput = tabPane.querySelector('.date-start');
+            const dateEndInput = tabPane.querySelector('.date-end');
+            if (dateStartInput) dateStartInput.addEventListener('change', applyFilters);
+            if (dateEndInput) dateEndInput.addEventListener('change', applyFilters);
+
+            // Add event listeners for search input
+            const searchInput = tabPane.querySelector('.search-input');
+
+            if (searchInput) {
+                // Apply filters immediately as user types (no minimum character requirement)
+                searchInput.addEventListener('input', function() {
+                    applyFilters();
+                });
+            }
+
+            // Reset filters
+            if (resetFiltersBtn) {
+                resetFiltersBtn.addEventListener('click', function() {
+                    if (cityFilter) cityFilter.value = '';
+                    if (statusFilter) statusFilter.value = '';
+                    if (searchInput) searchInput.value = '';
+
+                    // Reset date inputs to today
+                    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                    if (dateStartInput) dateStartInput.value = today;
+                    if (dateEndInput) dateEndInput.value = today;
+
+                    // Apply filters to show all rows
+                    applyFilters();
+
+                    console.log("Reset filters clicked - all filters reset");
+                });
+            }
+        }
+
+        // Update the lastUpdateTime variable
+        lastUpdateTime = new Date();
+
+        // Function to refresh the active tab content
+        function refreshActiveTab() {
+            // Show loading indicator
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'position-absolute w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75';
+            loadingOverlay.style.top = '0';
+            loadingOverlay.style.left = '0';
+            loadingOverlay.style.zIndex = '1000';
+            loadingOverlay.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+
+            const activeTabPane = document.getElementById(activeTabId);
+            if (activeTabPane) {
+                const tableContainer = activeTabPane.querySelector('.table-responsive');
+                if (tableContainer) {
+                    tableContainer.style.position = 'relative';
+                    tableContainer.appendChild(loadingOverlay);
+                }
+            }
+
+            // Get the current table data to compare with new data
+            const currentRows = activeTabPane ? activeTabPane.querySelectorAll('tbody tr').length : 0;
+
+            // Get the timestamp of the last update
+            const lastUpdateTimestamp = lastUpdateTime.getTime();
+
+            // Fetch the updated content
+            fetch('/finance-dashboard-content?tab=' + activeTabId + '&current_rows=' + currentRows + '&last_update=' + lastUpdateTimestamp)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.has_updates) {
+                        console.log('Updates detected, refreshing content...');
+                        // Update the last update time
+                        lastUpdateTime = new Date();
+
+                        // Reload the page to show the updated content
+                        window.location.reload();
+                    } else {
+                        console.log('No updates detected');
+                        // Remove loading indicator if no updates
+                        if (loadingOverlay.parentNode) {
+                            loadingOverlay.parentNode.removeChild(loadingOverlay);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing tab content:', error);
+                    // Remove loading indicator on error
+                    if (loadingOverlay.parentNode) {
+                        loadingOverlay.parentNode.removeChild(loadingOverlay);
+                    }
+                });
+        }
+
+        // Initialize filters for the active tab on page load
+        const activeTab = document.querySelector('.tab-pane.active');
+        if (activeTab) {
+            initializeFilters(activeTab.id);
+        }
+
+        // Initialize filters when switching tabs
+        tabs.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function(event) {
+                const targetId = event.target.getAttribute('data-bs-target').substring(1);
+                activeTabId = targetId;
+                initializeFilters(targetId);
+            });
+        });
+
+        // Auto-refresh disabled as requested
+        // To manually refresh, reload the page
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,1507 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}New Expense - Expense Portal{% endblock %}
+
+{% block additional_styles %}
+    .email-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        background-color: var(--sf-blue);
+        color: white;
+        border-radius: 50px;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .card-header {
+        background-color: var(--sf-blue);
+        color: white;
+        font-weight: 500;
+        padding: 15px 20px;
+    }
+
+    .card-body {
+        padding: 25px;
+    }
+
+    .form-section {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--sf-neutral-medium);
+    }
+
+    .form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .required-field::after {
+        content: '*';
+        color: var(--sf-error);
+        margin-left: 4px;
+    }
+
+    /* Fix for Payment To alignment */
+    .row .col-md-4 {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .row .col-md-4 .form-text {
+        margin-top: 0.25rem;
+        flex: 1;
+    }
+
+    /* Ensure consistent height for all form groups */
+    .input-group, .form-select {
+        flex: 0 0 auto;
+    }
+
+    /* Fix for dropdown alignment */
+    .form-select {
+        height: calc(1.5em + 0.75rem + 2px);
+    }
+
+    .input-group-text {
+        background-color: var(--sf-neutral-light);
+        border-right: none;
+    }
+
+    .input-group .form-control {
+        border-left: none;
+    }
+
+    .input-group .form-control:focus {
+        box-shadow: none;
+        border-color: var(--sf-neutral-medium);
+    }
+
+    .input-group .form-control:focus + .input-group-text {
+        border-color: var(--sf-neutral-medium);
+    }
+
+    .expense-item {
+        background-color: var(--sf-neutral-light);
+        border-radius: var(--sf-border-radius);
+        padding: 20px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .remove-expense {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: var(--sf-error);
+        cursor: pointer;
+        font-size: 1.2rem;
+    }
+
+    .remove-expense:hover {
+        color: #bd2130;
+    }
+
+    .alert {
+        border-radius: var(--sf-border-radius);
+        padding: 12px 15px;
+    }
+
+    .alert-info {
+        background-color: var(--sf-blue-light);
+        border-color: var(--sf-blue);
+        color: var(--sf-blue);
+    }
+
+    /* Custom styles for date inputs */
+    input[type="date"] {
+        position: relative;
+        color: #212529;
+        background-color: white;
+        font-family: inherit;
+        font-size: 1rem;
+    }
+
+    /* Style the date picker indicator */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+    }
+
+    .alert-info .alert-link {
+        color: var(--sf-blue);
+    }
+
+    /* Enhanced autocomplete styling */
+    .ui-autocomplete {
+        max-height: 300px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 9999;
+        border: 1px solid var(--sf-neutral-medium);
+        border-radius: var(--sf-border-radius);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        background-color: white;
+        padding: 5px 0;
+    }
+
+    .ui-menu-item {
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .ui-menu-item-wrapper {
+        padding: 10px 15px;
+        display: block;
+        border: none;
+        border-bottom: 1px solid var(--sf-neutral-light);
+    }
+
+    .ui-menu-item:last-child .ui-menu-item-wrapper {
+        border-bottom: none;
+    }
+
+    .ui-menu-item-wrapper.ui-state-active {
+        background-color: var(--sf-blue-light);
+        color: var(--sf-blue);
+        border: none;
+        margin: 0;
+    }
+
+    /* Employee ID styling in autocomplete */
+    .employee-id {
+        color: var(--sf-neutral-dark);
+        font-size: 0.85em;
+        margin-left: 5px;
+    }
+
+    .ui-helper-hidden-accessible {
+        display: none;
+    }
+
+    .total-section {
+        background-color: var(--sf-neutral-light);
+        border-radius: var(--sf-border-radius);
+        padding: 15px 20px;
+        margin-top: 20px;
+    }
+
+    .total-amount {
+        font-size: 1.2rem;
+        font-weight: 500;
+    }
+
+    .amount-words {
+        font-style: italic;
+        color: var(--sf-text-light);
+    }
+
+    @media (max-width: 768px) {
+        .card-body {
+            padding: 15px;
+        }
+        .expense-item {
+            padding: 15px;
+        }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 pt-3">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i> New Expense Claim</h5>
+                </div>
+                <div class="card-body">
+                    <form id="expenseForm" method="POST" action="{{ url_for('new_expense') }}" enctype="multipart/form-data">
+                        <!-- Employee Information Section -->
+                        <div class="form-section">
+                            <h5 class="mb-3"><i class="fas fa-user me-2"></i> Employee Information</h5>
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label for="employeeName" class="form-label required-field">Employee Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        <input type="text" class="form-control" id="employeeName" name="employee_name" placeholder="Type to search..." value="{{ session.get('user_info', {}).get('name', '') }}" required>
+                                    </div>
+                                    <div id="employeeNameHelp" class="form-text">Start typing to search for employees</div>
+                                    <input type="hidden" id="employeeId" name="employee_id" value="{{ session.get('employee_id', '') }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="employeeIdDisplay" class="form-label required-field">Employee ID</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+                                        <input type="text" class="form-control" id="employeeIdDisplay" value="{{ session.get('employee_id', '') }}" placeholder="Auto-filled when employee is selected" disabled>
+                                    </div>
+                                    <div class="form-text">This field is automatically filled</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="employeeEmail" name="email_id" value="{{ session.get('email', '') }}">
+                            <input type="hidden" id="employeeManager" name="manager" value="{{ session.get('employee_manager', '') }}">
+                        </div>
+
+                        <!-- Expense Details Section -->
+                        <div class="form-section">
+                            <h5 class="mb-3"><i class="fas fa-file-invoice me-2"></i> Expense Details</h5>
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label for="invoiceType" class="form-label required-field">Invoice Type</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-file-invoice"></i></span>
+                                        <select class="form-select" id="invoiceType" name="invoice_type" required>
+                                            <option value="standard">Standard Invoice</option>
+                                            <option value="master">Split Invoice (Master)</option>
+                                        </select>
+                                    </div>
+                                    <div id="invoiceTypeHelp" class="form-text">Select 'Split Invoice' if this expense needs to be split across multiple cost centers</div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-md-4 mb-3" id="costCenterContainer">
+                                    <label for="costCenter" class="form-label required-field">Cost Center</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-building"></i></span>
+                                        <input type="text" class="form-control" id="costCenterName" name="cost_center_name" placeholder="Type to search..." required>
+                                        <input type="hidden" id="costCenter" name="cost_center" required>
+                                    </div>
+                                    <div id="costCenterHelp" class="form-text">Start typing to search for cost centers</div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="citySelect" class="form-label required-field">City</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-city"></i></span>
+                                        <select class="form-select" id="citySelect" name="city" required>
+                                            <option value="">Select City</option>
+                                            <option value="Pune">Pune</option>
+                                            <option value="Nagpur">Nagpur</option>
+                                            <option value="Mumbai">Mumbai</option>
+                                        </select>
+                                    </div>
+                                    <div id="cityHelp" class="form-text">Select the city for this expense</div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="paymentTo" class="form-label required-field">Payment To</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-money-bill"></i></span>
+                                        <select class="form-select" id="paymentTo" name="expense_type" required>
+                                            <option value="">Select Payment Type</option>
+                                            <option value="Vendor">Vendor</option>
+                                            <option value="Self">Self</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-text">Select payment recipient type</div>
+                                </div>
+                            </div>
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <label for="fromDate" class="form-label required-field">From Date</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                        <input type="date" class="form-control" id="fromDate" name="from_date" required>
+                                    </div>
+                                    <div id="fromDateHelp" class="form-text">Select a date within the allowed range</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="toDate" class="form-label required-field">To Date</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                        <input type="date" class="form-control" id="toDate" name="to_date" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="academicYear" name="academic_year" value="2024-25">
+                        </div>
+
+                        <!-- Expense Items Section -->
+                        <div class="form-section">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i> Expense Items</h5>
+                            </div>
+
+                            <!-- Expense Items Container -->
+                            <div id="expense-container">
+                                <!-- Expense Items -->
+                                <div id="expenseItems">
+                                    <!-- Expense item template will be added here dynamically -->
+                                    <div class="expense-item mb-3 border-bottom pb-2" id="expense-1">
+                                        <div class="d-flex justify-content-between align-items-center expense-header" data-bs-toggle="collapse" data-bs-target="#expense-1-content" aria-expanded="true" style="cursor: pointer;">
+                                            <h6 class="mb-0">Expense #1</h6>
+                                            <i class="fas fa-times remove-expense" data-expense-id="1"></i>
+                                        </div>
+                                        <div id="expense-1-content" class="collapse show">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6 mb-3 mb-md-0">
+                                                <label for="invoiceDate-1" class="form-label required-field">Invoice Date</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                                    <input type="date" class="form-control" id="invoiceDate-1" name="invoice_date[]" required>
+                                                </div>
+                                            </div>
+                                        <div class="col-md-6">
+                                            <label for="expenseHead-1" class="form-label required-field">Expense Head</label>
+                                            <select class="form-select" id="expenseHead-1" name="expense_head[]" required>
+                                                <option value="">Select Expense Head</option>
+                                                {% for head in expense_heads %}
+                                                <option value="{{ head.head_name }}">{{ head.head_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="amount-1" class="form-label required-field">Amount (₹)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">₹</span>
+                                                <input type="number" class="form-control amount-input" id="amount-1" name="amount[]" placeholder="Enter amount" min="0" step="any" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="description-1" class="form-label required-field">Description</label>
+                                            <textarea class="form-control" id="description-1" name="description[]" rows="2" placeholder="Enter description" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <label for="receipt-1" class="form-label required-field">Upload Receipt</label>
+                                            <div class="input-group">
+                                                <input type="file" class="form-control" id="receipt-1" name="receipt[]" accept=".pdf,.jpg,.jpeg,.png" required>
+                                                <label class="input-group-text" for="receipt-1"><i class="fas fa-upload"></i></label>
+                                            </div>
+                                            <div class="form-text">Accepted formats: PDF, JPG, JPEG, PNG (Max size: 5MB)</div>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3 split-invoice-row" id="splitInvoiceRow-1" style="display: none;">
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input split-invoice-check" type="checkbox" id="splitInvoice-1" data-expense-id="1">
+                                                <input type="hidden" name="split_invoice[]" id="splitInvoiceHidden-1" value="0">
+                                                <label class="form-check-label" for="splitInvoice-1">
+                                                    This is a split from the same invoice as above
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Add Expense Button -->
+                                <div id="addExpenseButtonContainer" class="d-flex justify-content-start mb-3 mt-3">
+                                    <button type="button" class="btn btn-primary" id="addExpenseBtn">
+                                        <i class="fas fa-plus"></i> Add Expense
+                                    </button>
+                                </div>
+
+                                <!-- Acknowledgement Checkbox -->
+                                <div class="form-check mb-4 mt-2">
+                                    <input class="form-check-input" type="checkbox" id="acknowledgementCheck" name="acknowledgement" required>
+                                    <label class="form-check-label" for="acknowledgementCheck">
+                                        I declare that I have verified the invoice against the vendor contract.
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Total Amount Section -->
+                            <div class="total-section mt-5 pt-3 border-top">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="total-amount">Total Amount: ₹<span id="totalAmount">0.00</span></div>
+                                        <div class="amount-words mt-2">Amount in words: <span id="amountInWords">Zero rupees only</span></div>
+                                        <input type="hidden" name="total_amount" id="totalAmountInput" value="0">
+                                        <input type="hidden" name="amount_in_words" id="amountInWordsInput" value="Zero rupees only">
+                                    </div>
+                                    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                                        <button type="button" class="btn btn-primary" id="submitBtn">
+                                            <i class="fas fa-paper-plane me-2"></i> Submit Expense
+                                        </button>
+                                        <button type="reset" class="btn btn-secondary ms-2">
+                                            <i class="fas fa-redo me-2"></i> Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approval Modal -->
+<div class="modal fade" id="approvalModal" tabindex="-1" aria-labelledby="approvalModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="approvalModalLabel">Send for Approval</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="approvalForm">
+                        <div class="mb-3">
+                            <label for="approverType" class="form-label">Send to:</label>
+                            <select class="form-select" id="approverType">
+                                <option value="manager" selected>Manager</option>
+                                <option value="custom">Custom Email Addresses</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="managerEmailGroup">
+                            <label for="managerEmail" class="form-label">Manager's Email:</label>
+                            <input type="email" class="form-control" id="managerEmail" readonly>
+                        </div>
+
+                        <div class="mb-3" id="customEmailsGroup" style="display: none;">
+                            <label class="form-label">Enter email addresses:</label>
+                            <div class="input-group mb-2">
+                                <input type="email" class="form-control" id="newEmail" placeholder="Enter email address">
+                                <button class="btn btn-outline-primary" type="button" id="addEmailBtn">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div id="emailChips" class="d-flex flex-wrap gap-2 mt-2">
+                                <!-- Email chips will be added here -->
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="sendApprovalBtn">Send for Approval</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize all dropdowns
+        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+        var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
+            return new bootstrap.Dropdown(dropdownToggleEl);
+        });
+
+        // Handle from date change to enable to date and set min date
+        $('#fromDate').on('change', function() {
+            const fromDate = $(this).val();
+            if (fromDate) {
+                // Enable the to date field once from date is selected
+                $('#toDate').prop('disabled', false);
+
+                // Set the minimum date for to date
+                $('#toDate').attr('min', fromDate);
+
+                console.log(`From date changed to ${fromDate}, to date min set to ${fromDate}`);
+
+                // Update all invoice dates to have the same min date
+                $('input[id^="invoiceDate-"]').attr('min', fromDate);
+
+                // Check if any invoice dates are now out of range and show warnings
+                $('input[id^="invoiceDate-"]').each(function() {
+                    const invoiceDate = $(this).val();
+                    if (invoiceDate && invoiceDate < fromDate) {
+                        // Show warning for out-of-range invoice date
+                        const expenseId = $(this).attr('id').split('-')[1];
+                        const warningId = `invoiceDateWarning-${expenseId}`;
+
+                        // Create or update warning message
+                        if ($(`#${warningId}`).length === 0) {
+                            $(this).after(`<div id="${warningId}" class="text-danger small mt-1">Invoice date is before the from date</div>`);
+                        }
+                    } else {
+                        // Remove warning if date is now valid
+                        const expenseId = $(this).attr('id').split('-')[1];
+                        const warningId = `invoiceDateWarning-${expenseId}`;
+                        $(`#${warningId}`).remove();
+                    }
+                });
+            } else {
+                // If from date is cleared, disable to date
+                $('#toDate').prop('disabled', true);
+            }
+        });
+
+        // Handle to date change to update max date for invoice dates
+        $('#toDate').on('change', function() {
+            const toDate = $(this).val();
+            if (toDate) {
+                // Update all invoice dates to have the same max date
+                $('input[id^="invoiceDate-"]').attr('max', toDate);
+
+                // Check if any invoice dates are now out of range and show warnings
+                $('input[id^="invoiceDate-"]').each(function() {
+                    const invoiceDate = $(this).val();
+                    if (invoiceDate && invoiceDate > toDate) {
+                        // Show warning for out-of-range invoice date
+                        const expenseId = $(this).attr('id').split('-')[1];
+                        const warningId = `invoiceDateWarning-${expenseId}`;
+
+                        // Create or update warning message
+                        if ($(`#${warningId}`).length === 0) {
+                            $(this).after(`<div id="${warningId}" class="text-danger small mt-1">Invoice date is after the to date</div>`);
+                        } else {
+                            $(`#${warningId}`).text('Invoice date is after the to date');
+                        }
+                    } else {
+                        // Check if there's a from date warning
+                        const fromDate = $('#fromDate').val();
+                        const expenseId = $(this).attr('id').split('-')[1];
+                        const warningId = `invoiceDateWarning-${expenseId}`;
+
+                        if (invoiceDate && fromDate && invoiceDate < fromDate) {
+                            // Keep the from date warning
+                            if ($(`#${warningId}`).length === 0) {
+                                $(this).after(`<div id="${warningId}" class="text-danger small mt-1">Invoice date is before the from date</div>`);
+                            }
+                        } else {
+                            // Remove warning if date is now valid
+                            $(`#${warningId}`).remove();
+                        }
+                    }
+                });
+            }
+        });
+
+        // Initially disable to date until from date is selected
+        $('#toDate').prop('disabled', true);
+
+        // The first expense item should never be a split invoice
+        // Hide the split invoice option for the first expense
+        $('#splitInvoiceRow-1').hide();
+        $('#splitInvoiceHidden-1').val('0');
+
+        // Make sure the first expense's split invoice option is always hidden
+        $(document).on('click', function() {
+            $('#splitInvoiceRow-1').hide();
+        });
+
+        // Invoice date datepickers will be initialized by our initializeAllDatepickers function
+
+        // Track if valid selections have been made
+        let validEmployee = true; // Default to true since it's prefilled with logged-in user
+        let validCostCenter = false;
+
+        // Employee name autocomplete
+        $("#employeeName").autocomplete({
+            source: "/api/employees",
+            minLength: 2,
+            select: function(event, ui) {
+                // Fill in employee details
+                $("#employeeId").val(ui.item.employee_id);
+                $("#employeeIdDisplay").val(ui.item.employee_id);
+                $("#employeeEmail").val(ui.item.email);
+                $("#employeeManager").val(ui.item.manager);
+                $("#managerEmail").val(ui.item.manager);
+                validEmployee = true;
+                $("#employeeNameHelp").text("Employee selected").removeClass("text-danger").addClass("text-success");
+                return true;
+            },
+            change: function(event, ui) {
+                // If nothing was selected from dropdown
+                if (!ui.item) {
+                    validEmployee = false;
+                    $("#employeeId").val("");
+                    $("#employeeIdDisplay").val("");
+                    $("#employeeEmail").val("");
+                    $("#employeeManager").val("");
+                    $("#managerEmail").val("");
+                    $("#employeeNameHelp").text("Please select a valid employee from the list").addClass("text-danger").removeClass("text-success");
+                }
+            }
+        });
+
+        // Cost center autocomplete
+        $("#costCenterName").autocomplete({
+            source: "/api/cost-centers",
+            minLength: 2,
+            select: function(event, ui) {
+                // Fill in cost center ID
+                $("#costCenter").val(ui.item.id);
+                validCostCenter = true;
+                $("#costCenterHelp").text("Cost center selected").removeClass("text-danger").addClass("text-success");
+
+                // Update city dropdown if the cost center has a city
+                if (ui.item.city) {
+                    $("#citySelect").val(ui.item.city);
+                    $("#cityHelp").text("City auto-selected from cost center").removeClass("text-danger").addClass("text-success");
+                } else {
+                    // Clear city selection if cost center doesn't have a city
+                    $("#citySelect").val("");
+                    $("#cityHelp").text("Please select a city for this expense").removeClass("text-success").removeClass("text-danger");
+                }
+
+                return true;
+            },
+            response: function(event, ui) {
+                // Show a message if no results found
+                if (ui.content.length === 0) {
+                    $("#costCenterHelp").text("No matching cost centers found").addClass("text-danger").removeClass("text-success");
+                } else {
+                    $("#costCenterHelp").text("Please select a cost center from the list").removeClass("text-danger").removeClass("text-success");
+                }
+            },
+            change: function(event, ui) {
+                // If nothing was selected from dropdown
+                if (!ui.item) {
+                    validCostCenter = false;
+                    $("#costCenter").val("");
+                    $("#costCenterHelp").text("Please select a valid cost center from the list").addClass("text-danger").removeClass("text-success");
+                }
+            }
+        });
+
+        // Clear employee details when name is cleared
+        $("#employeeName").on("input", function() {
+            if ($(this).val() === "") {
+                $("#employeeId").val("");
+                $("#employeeIdDisplay").val("");
+                $("#employeeEmail").val("");
+                $("#employeeManager").val("");
+                $("#managerEmail").val("");
+                validEmployee = false;
+                $("#employeeNameHelp").text("Start typing to search for employees").removeClass("text-danger").removeClass("text-success");
+            } else {
+                // If user modifies the text after selecting an item
+                validEmployee = false;
+                $("#employeeNameHelp").text("Please select a valid employee from the list").addClass("text-danger").removeClass("text-success");
+            }
+        });
+
+        // Clear cost center ID when name is cleared
+        $("#costCenterName").on("input", function() {
+            if ($(this).val() === "") {
+                $("#costCenter").val("");
+                validCostCenter = false;
+                $("#costCenterHelp").text("Start typing to search for cost centers").removeClass("text-danger").removeClass("text-success");
+            } else {
+                // If user modifies the text after selecting an item
+                validCostCenter = false;
+                $("#costCenterHelp").text("Please select a valid cost center from the list").addClass("text-danger").removeClass("text-success");
+            }
+        });
+
+        // Add expense button
+        let expenseCount = 1;
+        $("#addExpenseBtn").click(function() {
+            // Find the next available expense number
+            let existingIds = [];
+            $(".expense-item").each(function() {
+                const id = $(this).attr("id");
+                const match = id.match(/expense-(\d+)/);
+                if (match) {
+                    existingIds.push(parseInt(match[1]));
+                }
+            });
+
+            // If there are no expense items, start with 1
+            if (existingIds.length === 0) {
+                expenseCount = 1;
+            } else {
+                // Find the next sequential number
+                existingIds.sort((a, b) => a - b);
+                expenseCount = existingIds[existingIds.length - 1] + 1;
+            }
+
+            // Clone the first expense item
+            const newExpense = $("#expense-1").clone();
+
+            // Update IDs and attributes
+            newExpense.attr("id", `expense-${expenseCount}`);
+
+            // Update the header attributes
+            newExpense.find(".expense-header").attr("data-bs-target", `#expense-${expenseCount}-content`);
+
+            // Update header
+            newExpense.find("h6").text(`Expense #${expenseCount}`);
+
+            // Update content div
+            newExpense.find("#expense-1-content").attr("id", `expense-${expenseCount}-content`);
+
+            // We'll update input IDs and clear values now
+
+            // First update all input IDs and attributes before initializing datepicker
+            newExpense.find("input, select, textarea").each(function() {
+                const oldId = $(this).attr("id");
+                if (oldId) {
+                    const newId = oldId.replace("-1", `-${expenseCount}`);
+                    $(this).attr("id", newId);
+                }
+
+                // Clear values
+                if (!$(this).hasClass("split-invoice-check")) {
+                    $(this).val("");
+                }
+            });
+
+            // Update labels
+            newExpense.find("label").each(function() {
+                const oldFor = $(this).attr("for");
+                if (oldFor) {
+                    const newFor = oldFor.replace("-1", `-${expenseCount}`);
+                    $(this).attr("for", newFor);
+                }
+            });
+
+            // Update remove button
+            newExpense.find(".remove-expense").attr("data-expense-id", expenseCount);
+
+            // Update split invoice checkbox and hidden field
+            newExpense.find(".split-invoice-check").attr("data-expense-id", expenseCount);
+            newExpense.find(".split-invoice-check").attr("id", `splitInvoice-${expenseCount}`);
+            newExpense.find("input[name='split_invoice[]']").attr("id", `splitInvoiceHidden-${expenseCount}`);
+            newExpense.find(".split-invoice-row").attr("id", `splitInvoiceRow-${expenseCount}`);
+
+            // Only show split invoice option for expenses after the first one
+            newExpense.find(".split-invoice-row").show();
+
+            // Collapse all existing expense items
+            $(".expense-item .collapse").collapse('hide');
+
+            // Insert the new expense item
+            $("#expenseItems").append(newExpense);
+
+            // Datepicker will be initialized separately by our initializeNewExpenseDatepicker function
+
+            // Add event listener for the new remove button
+            $(`#expense-${expenseCount} .remove-expense`).click(function() {
+                const expenseId = $(this).data("expense-id");
+                $(`#expense-${expenseId}`).remove();
+                updateTotalAmount();
+            });
+
+            // Add event listener for the new split invoice checkbox
+            $(`#splitInvoice-${expenseCount}`).change(function() {
+                const expenseId = $(this).data("expense-id");
+                const isChecked = $(this).prop("checked");
+
+                if (isChecked) {
+                    // Disable receipt upload for split invoices
+                    $(`#receipt-${expenseId}`).prop("disabled", true).prop("required", false);
+                    // Set the hidden field value to 1 (true)
+                    $(`#splitInvoiceHidden-${expenseId}`).val("1");
+                } else {
+                    // Enable receipt upload for non-split invoices
+                    $(`#receipt-${expenseId}`).prop("disabled", false).prop("required", true);
+                    // Set the hidden field value to 0 (false)
+                    $(`#splitInvoiceHidden-${expenseId}`).val("0");
+                }
+            });
+
+            // Add event listener for the new amount input
+            $(`#amount-${expenseCount}`).on("input", updateTotalAmount);
+
+            // Show the new expense item
+            $(`#expense-${expenseCount}-content`).collapse('show');
+        });
+
+        // Remove expense button
+        $(document).on("click", ".remove-expense", function(e) {
+            e.stopPropagation(); // Prevent collapse toggle
+            const expenseId = $(this).data("expense-id");
+            if (expenseId !== 1) { // Don't remove the first expense item
+                $(`#expense-${expenseId}`).remove();
+                updateTotalAmount();
+            }
+        });
+
+        // Split invoice checkbox
+        $(document).on("change", ".split-invoice-check", function() {
+            const expenseId = $(this).data("expense-id");
+            const isChecked = $(this).prop("checked");
+
+            if (isChecked) {
+                // Disable receipt upload for split invoices
+                $(`#receipt-${expenseId}`).prop("disabled", true).prop("required", false);
+            } else {
+                // Enable receipt upload for non-split invoices
+                $(`#receipt-${expenseId}`).prop("disabled", false).prop("required", true);
+            }
+        });
+
+        // Update total amount when amount inputs change
+        $(document).on("input", ".amount-input", updateTotalAmount);
+
+        function updateTotalAmount() {
+            let total = 0;
+            $(".amount-input").each(function() {
+                const amount = parseFloat($(this).val()) || 0;
+                total += amount;
+            });
+
+            // Format the total with appropriate decimal places
+            // If the total has decimal places, show them, otherwise show as whole number
+            const formattedTotal = total % 1 === 0 ? total.toString() : total.toFixed(2);
+
+            // Display the formatted total
+            $("#totalAmount").text(formattedTotal);
+            $("#totalAmountInput").val(formattedTotal);
+
+            // Update amount in words
+            const amountInWords = numberToWords(total);
+            $("#amountInWords").text(amountInWords);
+            $("#amountInWordsInput").val(amountInWords);
+        }
+
+        // Convert number to words
+        function numberToWords(num) {
+            const units = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+            const tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+            if (num === 0) return "Zero rupees only";
+
+            // Handle decimal part
+            const decimalPart = Math.round((num % 1) * 100);
+            const wholePart = Math.floor(num);
+
+            let result = "";
+
+            if (wholePart > 0) {
+                // Convert whole part to words - IMPORTANT: Don't modify the original number
+                let remainingAmount = wholePart;
+
+                // Handle crores (10,000,000)
+                if (remainingAmount >= 10000000) {
+                    const crores = Math.floor(remainingAmount / 10000000);
+                    result += convertLessThanThousand(crores) + " crore ";
+                    remainingAmount %= 10000000;
+                }
+
+                // Handle lakhs (100,000)
+                if (remainingAmount >= 100000) {
+                    const lakhs = Math.floor(remainingAmount / 100000);
+                    result += convertLessThanThousand(lakhs) + " lakh ";
+                    remainingAmount %= 100000;
+                }
+
+                // Handle thousands
+                if (remainingAmount >= 1000) {
+                    const thousands = Math.floor(remainingAmount / 1000);
+                    result += convertLessThanThousand(thousands) + " thousand ";
+                    remainingAmount %= 1000;
+                }
+
+                // Handle hundreds and below
+                if (remainingAmount > 0) {
+                    result += convertLessThanThousand(remainingAmount);
+                }
+
+                result += " rupees";
+            }
+
+            // Add decimal part if exists
+            if (decimalPart > 0) {
+                result += " and " + convertLessThanThousand(decimalPart) + " paise";
+            }
+
+            return result + " only";
+
+            function convertLessThanThousand(num) {
+                if (num === 0) return "";
+
+                let result = "";
+
+                if (num >= 100) {
+                    result += units[Math.floor(num / 100)] + " hundred ";
+                    const remainder = num % 100;
+
+                    if (remainder > 0) {
+                        result += "and ";
+                    }
+
+                    num = remainder;
+                }
+
+                if (num > 0) {
+                    if (num < 20) {
+                        result += units[num];
+                    } else {
+                        result += tens[Math.floor(num / 10)];
+                        if (num % 10 > 0) {
+                            result += "-" + units[num % 10];
+                        }
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        // Submit button
+        $("#submitBtn").click(function() {
+            // Validate form
+            if (!validateForm()) {
+                return;
+            }
+
+            // Show approval modal
+            const managerEmail = $("#employeeManager").val();
+            $("#managerEmail").val(managerEmail);
+
+            const approvalModal = new bootstrap.Modal(document.getElementById('approvalModal'));
+            approvalModal.show();
+        });
+
+        // Validate form
+        function validateForm() {
+            // Check if all required fields are filled
+            const form = document.getElementById("expenseForm");
+            if (!form.checkValidity()) {
+                // Trigger browser's native validation
+                form.reportValidity();
+                return false;
+            }
+
+            // Check if valid employee and cost center selections have been made
+            let isValid = true;
+            let errorMessage = "";
+
+            if (!validEmployee) {
+                $("#employeeNameHelp").text("Please select a valid employee from the list").addClass("text-danger").removeClass("text-success");
+                errorMessage += "Please select a valid employee from the dropdown list.\n";
+                isValid = false;
+            }
+
+            if (!validCostCenter) {
+                $("#costCenterHelp").text("Please select a valid cost center from the list").addClass("text-danger").removeClass("text-success");
+                errorMessage += "Please select a valid cost center from the dropdown list.\n";
+                isValid = false;
+            }
+
+            if (!isValid) {
+                // Show error message
+                Swal.fire({
+                    title: 'Validation Error',
+                    text: errorMessage.trim(),
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                return false;
+            }
+
+            return true;
+        }
+
+        // Approver type selection
+        $("#approverType").change(function() {
+            const selectedType = $(this).val();
+
+            if (selectedType === "manager") {
+                $("#managerEmailGroup").show();
+                $("#customEmailsGroup").hide();
+            } else {
+                $("#managerEmailGroup").hide();
+                $("#customEmailsGroup").show();
+            }
+        });
+
+        // Add email button
+        $("#addEmailBtn").click(function() {
+            const email = $("#newEmail").val().trim();
+
+            // Validate email
+            if (!email || !isValidEmail(email)) {
+                alert("Please enter a valid email address");
+                return;
+            }
+
+            // Check if email already exists
+            if ($("#emailChips").find(`[data-email="${email}"]`).length > 0) {
+                alert("This email has already been added");
+                return;
+            }
+
+            // Add email chip
+            const chip = $(`
+                <div class="email-chip" data-email="${email}">
+                    ${email}
+                    <i class="fas fa-times ms-2 remove-email" style="cursor: pointer;"></i>
+                </div>
+            `);
+
+            $("#emailChips").append(chip);
+            $("#newEmail").val("");
+        });
+
+        // Remove email chip
+        $(document).on("click", ".remove-email", function() {
+            $(this).parent().remove();
+        });
+
+        // Validate email format
+        function isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Submit button
+        $("#submitBtn").click(function() {
+            // Validate form
+            if (!validateForm()) {
+                return;
+            }
+
+            // Check if this is a split invoice
+            const invoiceType = $('#invoiceType').val();
+            if (invoiceType === 'master') {
+                // For split invoices, handle the form submission in the form's submit handler
+                // which will redirect to the allocation page
+                $('#expenseForm').submit();
+                return;
+            }
+
+            // For regular invoices, show the approval modal
+            const managerEmail = $("#employeeManager").val();
+            $("#managerEmail").val(managerEmail);
+
+            const approvalModal = new bootstrap.Modal(document.getElementById('approvalModal'));
+            approvalModal.show();
+        });
+
+        // Send for approval button
+        $("#sendApprovalBtn").click(function() {
+            const approverType = $("#approverType").val();
+            let approverEmails = [];
+
+            if (approverType === "manager") {
+                const managerEmail = $("#managerEmail").val().trim();
+                if (managerEmail) {
+                    approverEmails.push(managerEmail);
+                }
+            } else {
+                // Get all custom emails
+                $("#emailChips").find(".email-chip").each(function() {
+                    approverEmails.push($(this).data("email"));
+                });
+            }
+
+            // Validate approver emails
+            if (approverEmails.length === 0) {
+                alert("Please specify at least one approver email");
+                return;
+            }
+
+            // Show loading screen only when submitting the form
+            if (typeof LoadingScreen !== 'undefined') {
+                // Don't show loading screen here, only when actually submitting
+            }
+
+            // Check if this is a split invoice
+            const invoiceType = $('#invoiceType').val();
+            if (invoiceType === 'master') {
+                // For split invoices, we don't want to submit via AJAX
+                // The form's submit handler will handle the redirection
+                return;
+            }
+
+            // Submit the form using AJAX to prevent page redirect
+            // Show loading screen now that we're actually submitting
+            if (typeof LoadingScreen !== 'undefined') {
+                LoadingScreen.show(3); // Show loading screen for 3 seconds
+            }
+
+            // Log split invoice values for debugging
+            console.log('Split invoice values:');
+            $('input[name="split_invoice[]"]').each(function(index) {
+                console.log(`Expense ${index+1}: ${$(this).val() === '1' ? 'Split' : 'Not Split'}`);
+            });
+
+            $.ajax({
+                url: $("#expenseForm").attr("action"),
+                type: "POST",
+                data: new FormData($("#expenseForm")[0]),
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        // Get the EPV ID from the response
+                        const epvId = response.epv_id;
+                        console.log("EPV ID from response:", epvId);
+
+                        // Send approval request
+                        if (approverEmails.length > 0) {
+                            console.log("Sending approval request for EPV ID:", epvId);
+                            console.log("Approver emails:", approverEmails);
+
+                            // Show loading screen for the approval email sending
+                            if (typeof LoadingScreen !== 'undefined') {
+                                LoadingScreen.show(2); // Show loading screen for 2 seconds
+                            }
+
+                            $.ajax({
+                                url: "/send-for-approval",
+                                type: "POST",
+                                contentType: "application/json",
+                                data: JSON.stringify({
+                                    epv_id: epvId,
+                                    approval_option: approverType === "manager" ? "yes" : "no",
+                                    manager_email: approverType === "manager" ? approverEmails[0] : "",
+                                    custom_emails: approverType === "custom" ? approverEmails : []
+                                }),
+                                success: function(approvalResponse) {
+                                    // Hide loading screen
+                                    if (typeof LoadingScreen !== 'undefined') {
+                                        LoadingScreen.hide();
+                                    }
+
+                                    // Show success message
+                                    Swal.fire({
+                                        title: 'Success!',
+                                        text: response.message + " " + (approvalResponse.success ? approvalResponse.message : ""),
+                                        icon: 'success',
+                                        confirmButtonText: 'OK'
+                                    }).then((result) => {
+                                        // Redirect to EPV records page
+                                        window.location.href = '/epv-records';
+                                    });
+                                },
+                                error: function(xhr, status, error) {
+                                    // Hide loading screen
+                                    if (typeof LoadingScreen !== 'undefined') {
+                                        LoadingScreen.hide();
+                                    }
+
+                                    // Show success message for expense submission but error for approval
+                                    Swal.fire({
+                                        title: 'Partial Success',
+                                        text: response.message + " However, there was an error sending the approval request.",
+                                        icon: 'warning',
+                                        confirmButtonText: 'OK'
+                                    }).then((result) => {
+                                        // Redirect to EPV records page
+                                        window.location.href = '/epv-records';
+                                    });
+                                }
+                            });
+                        } else {
+                            // Hide loading screen
+                            if (typeof LoadingScreen !== 'undefined') {
+                                LoadingScreen.hide();
+                            }
+
+                            // Show success message
+                            Swal.fire({
+                                title: 'Success!',
+                                text: response.message,
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            }).then((result) => {
+                                // Redirect to EPV records page
+                                window.location.href = '/epv-records';
+                            });
+                        }
+                    } else {
+                        // Hide loading screen
+                        if (typeof LoadingScreen !== 'undefined') {
+                            LoadingScreen.hide();
+                        }
+
+                        // Show error message
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message || 'An error occurred while submitting the expense.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    // Hide loading screen
+                    if (typeof LoadingScreen !== 'undefined') {
+                        LoadingScreen.hide();
+                    }
+
+                    // Show error message
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'An error occurred while submitting the expense.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            });
+        });
+
+        // Get finance settings
+        $.ajax({
+            url: "/api/settings/finance",
+            method: "GET",
+            success: function(data) {
+                // Apply date validation rules
+                const maxDays = data.max_days_past || 30; // Default to 30 days if not specified
+
+                $(".datepicker").datepicker("option", "minDate", -maxDays);
+            }
+        });
+
+        // Function to format date as dd-mm-yyyy for display (for reference only)
+        function formatDateForDisplay(dateString) {
+            if (!dateString) return '';
+            const [year, month, day] = dateString.split('-');
+            return `${day}-${month}-${year}`;
+        }
+
+        // Function to format date as yyyy-mm-dd for input value (for reference only)
+        function formatDateForInput(dateString) {
+            if (!dateString) return '';
+            const [day, month, year] = dateString.split('-');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Fetch finance settings to get max_days_past
+        let maxDaysPast = 30; // Default value
+
+        // Fetch finance settings from the API
+        $.ajax({
+            url: '/api/settings/finance',
+            method: 'GET',
+            dataType: 'json',
+            async: false, // Make this synchronous to ensure we have the value before proceeding
+            success: function(data) {
+                if (data.max_days_past && data.max_days_past.value) {
+                    maxDaysPast = parseInt(data.max_days_past.value);
+                    console.log(`Loaded max_days_past from settings: ${maxDaysPast} days`);
+                } else {
+                    console.log(`Using default max_days_past: ${maxDaysPast} days`);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching finance settings:', error);
+                console.log(`Using default max_days_past: ${maxDaysPast} days`);
+            }
+        });
+
+        // Set max date (today) and min date (today - maxDaysPast) for from date
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const maxDate = `${yyyy}-${mm}-${dd}`;
+
+        // Calculate min date (today - maxDaysPast)
+        const minDate = new Date();
+        minDate.setDate(today.getDate() - maxDaysPast);
+        const minYyyy = minDate.getFullYear();
+        const minMm = String(minDate.getMonth() + 1).padStart(2, '0');
+        const minDd = String(minDate.getDate()).padStart(2, '0');
+        const minDateStr = `${minYyyy}-${minMm}-${minDd}`;
+
+        // Set max date for all date inputs
+        $('input[type="date"]').attr('max', maxDate);
+
+        // Set min date only for from date
+        $('#fromDate').attr('min', minDateStr);
+
+        // Update the helper text to show the date range
+        const formattedMinDate = formatDateForDisplay(minDateStr);
+        const formattedMaxDate = formatDateForDisplay(maxDate);
+        $('#fromDateHelp').text(`Select a date between ${formattedMinDate} and ${formattedMaxDate}`);
+
+        console.log(`Date range for from date: ${minDateStr} to ${maxDate} (${maxDaysPast} days in the past)`);
+
+        // Set max date and min date for date inputs
+        $('input[type="date"]').each(function() {
+            $(this).attr('max', maxDate);
+
+            // Only set min date for fromDate
+            if ($(this).attr('id') === 'fromDate') {
+                $(this).attr('min', minDateStr);
+            }
+
+            // Add validation for invoice date inputs
+            if ($(this).attr('id').startsWith('invoiceDate-')) {
+                // Set initial min/max dates if from/to dates are already set
+                const fromDate = $('#fromDate').val();
+                const toDate = $('#toDate').val();
+
+                if (fromDate) {
+                    $(this).attr('min', fromDate);
+                }
+
+                if (toDate) {
+                    $(this).attr('max', toDate);
+                }
+
+                // Add change event handler
+                $(this).off('change.validation').on('change.validation', function() {
+                    validateInvoiceDate($(this));
+                });
+            }
+        });
+
+        // Add event listener to set max date for new date inputs
+        $('#addExpenseBtn').on('click', function() {
+            setTimeout(function() {
+                // Set max date to today for all date inputs
+                $('input[type="date"]').each(function() {
+                    $(this).attr('max', maxDate);
+                });
+
+                // Set min and max dates for invoice dates based on from and to dates
+                const fromDate = $('#fromDate').val();
+                const toDate = $('#toDate').val();
+
+                if (fromDate) {
+                    $('input[id^="invoiceDate-"]').attr('min', fromDate);
+                }
+
+                if (toDate) {
+                    $('input[id^="invoiceDate-"]').attr('max', toDate);
+                }
+
+                // Add change event handler for new invoice date inputs
+                $('input[id^="invoiceDate-"]').off('change.validation').on('change.validation', function() {
+                    validateInvoiceDate($(this));
+                });
+            }, 100);
+        });
+
+        // Function to validate invoice date against from and to dates
+        function validateInvoiceDate(invoiceDateInput) {
+            const invoiceDate = invoiceDateInput.val();
+            const fromDate = $('#fromDate').val();
+            const toDate = $('#toDate').val();
+            const expenseId = invoiceDateInput.attr('id').split('-')[1];
+            const warningId = `invoiceDateWarning-${expenseId}`;
+
+            // Remove any existing warning
+            $(`#${warningId}`).remove();
+
+            // Check if invoice date is outside the range
+            if (invoiceDate && fromDate && invoiceDate < fromDate) {
+                // Show warning for out-of-range invoice date
+                invoiceDateInput.after(`<div id="${warningId}" class="text-danger small mt-1">Invoice date is before the from date</div>`);
+            } else if (invoiceDate && toDate && invoiceDate > toDate) {
+                // Show warning for out-of-range invoice date
+                invoiceDateInput.after(`<div id="${warningId}" class="text-danger small mt-1">Invoice date is after the to date</div>`);
+            }
+        }
+
+        // When the form is submitted, validate all dates and prevent submission if invalid
+        $('#expenseForm').on('submit', function(e) {
+            // The native date input already stores dates in yyyy-mm-dd format
+
+            // Validate all invoice dates against from/to dates
+            const fromDate = $('#fromDate').val();
+            const toDate = $('#toDate').val();
+            let hasInvalidDates = false;
+
+            // Check all invoice dates
+            $('input[id^="invoiceDate-"]').each(function() {
+                const invoiceDate = $(this).val();
+                if (invoiceDate) {
+                    // Check if invoice date is outside the range
+                    if (fromDate && invoiceDate < fromDate) {
+                        hasInvalidDates = true;
+                        validateInvoiceDate($(this));
+                    } else if (toDate && invoiceDate > toDate) {
+                        hasInvalidDates = true;
+                        validateInvoiceDate($(this));
+                    }
+                }
+            });
+
+            // Prevent form submission if there are invalid dates
+            if (hasInvalidDates) {
+                e.preventDefault();
+
+                // Show error message
+                Swal.fire({
+                    title: 'Invalid Dates',
+                    text: 'One or more invoice dates are outside the from/to date range. Please correct them before submitting.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+
+                // Scroll to the first invalid date
+                const firstInvalidDate = $('div[id^="invoiceDateWarning-"]').first();
+                if (firstInvalidDate.length) {
+                    $('html, body').animate({
+                        scrollTop: firstInvalidDate.offset().top - 100
+                    }, 500);
+                }
+
+                return false;
+            }
+            // which is what we need for the server
+            console.log('Form submitted with dates in yyyy-mm-dd format');
+
+            // For debugging, log all date values
+            $('input[type="date"]').each(function() {
+                const dateValue = $(this).val();
+                if (dateValue) {
+                    console.log(`Date field ${$(this).attr('id')}: ${dateValue} (displayed as ${formatDateForDisplay(dateValue)})`);
+                }
+            });
+
+            // Check if this is a split invoice
+            const invoiceType = $('#invoiceType').val();
+            if (invoiceType === 'master') {
+                // Prevent the default form submission
+                e.preventDefault();
+
+                // Save the form data to session storage
+                const formData = new FormData(document.getElementById('expenseForm'));
+                const formDataObj = {};
+
+                // Handle file separately
+                const fileInput = document.getElementById('receiptFile');
+                if (fileInput && fileInput.files.length > 0) {
+                    // Store file name for reference
+                    formDataObj['file_name'] = fileInput.files[0].name;
+                    formDataObj['file_size'] = fileInput.files[0].size;
+                    formDataObj['file_type'] = fileInput.files[0].type;
+
+                    // We can't store the actual file in session storage,
+                    // but we'll handle this in the backend
+                }
+
+                // Store other form fields
+                for (const [key, value] of formData.entries()) {
+                    // Skip the file input as we handled it separately
+                    if (key !== 'receipt_file') {
+                        formDataObj[key] = value;
+                    }
+                }
+                sessionStorage.setItem('masterInvoiceData', JSON.stringify(formDataObj));
+
+                // Redirect to the split allocation page
+                window.location.href = '{{ url_for("split_invoice_allocation") }}';
+                return false;
+            }
+
+            return true; // Allow form submission to proceed
+        });
+
+        // Handle invoice type change
+        $('#invoiceType').change(function() {
+            const invoiceType = $(this).val();
+            if (invoiceType === 'master') {
+                // Hide cost center field for master invoices
+                $('#costCenterContainer').hide();
+                $('#costCenterName').prop('required', false);
+                $('#costCenter').prop('required', false);
+            } else {
+                // Show cost center field for standard invoices
+                $('#costCenterContainer').show();
+                $('#costCenterName').prop('required', true);
+                $('#costCenter').prop('required', true);
+            }
+        });
+    });
+</script>
+{% endblock %}

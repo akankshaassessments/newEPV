@@ -1,0 +1,900 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}EPV System Documentation{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .doc-section {
+        margin-bottom: 2.5rem;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+    }
+
+    .doc-section h2 {
+        color: var(--sf-blue);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--sf-neutral-light);
+    }
+
+    .doc-section h3 {
+        color: var(--sf-text-dark);
+        margin: 1.5rem 0 0.75rem;
+    }
+
+    .flowchart-container {
+        width: 100%;
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .nav-tabs {
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--sf-neutral-light);
+    }
+
+    .nav-tabs .nav-link {
+        color: var(--sf-text-medium);
+        border: none;
+        padding: 0.75rem 1rem;
+        margin-right: 0.5rem;
+        border-radius: 4px 4px 0 0;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--sf-blue);
+        background-color: transparent;
+        border-bottom: 3px solid var(--sf-blue);
+    }
+
+    .tab-content {
+        padding-top: 1rem;
+    }
+
+    .doc-intro {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background-color: var(--sf-blue-light);
+        border-radius: 8px;
+        color: var(--sf-text-dark);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="doc-intro">
+        <h1 class="mb-3">EPV System Documentation</h1>
+        <p class="lead">This documentation provides a comprehensive guide to the Expense Processing Voucher (EPV) system, including workflows, user journeys, and frequently asked questions.</p>
+    </div>
+
+    <ul class="nav nav-tabs" id="docTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="workflows-tab" data-bs-toggle="tab" data-bs-target="#workflows" type="button" role="tab" aria-controls="workflows" aria-selected="true">
+                <i class="fas fa-project-diagram me-2"></i>Workflows
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="user-journeys-tab" data-bs-toggle="tab" data-bs-target="#user-journeys" type="button" role="tab" aria-controls="user-journeys" aria-selected="false">
+                <i class="fas fa-user-clock me-2"></i>User Journeys
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="google-docs-tab" data-bs-toggle="tab" data-bs-target="#google-docs" type="button" role="tab" aria-controls="google-docs" aria-selected="false">
+                <i class="fas fa-file-alt me-2"></i>User Guide
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="faq-tab" data-bs-toggle="tab" data-bs-target="#faq" type="button" role="tab" aria-controls="faq" aria-selected="false">
+                <i class="fas fa-question-circle me-2"></i>FAQ
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="docTabsContent">
+        <!-- Workflows Tab -->
+        <div class="tab-pane fade show active" id="workflows" role="tabpanel" aria-labelledby="workflows-tab">
+            <!-- User Authentication Flow -->
+            <div class="doc-section">
+                <h2><i class="fas fa-sign-in-alt me-2"></i>User Authentication Flow</h2>
+                <p>This diagram illustrates the authentication process using Google OAuth and role-based access control.</p>
+                <div class="flowchart-container">
+                    <div class="auth-flow-chart"></div>
+                </div>
+            </div>
+
+            <!-- Expense Submission Process -->
+            <div class="doc-section">
+                <h2><i class="fas fa-file-invoice-dollar me-2"></i>Expense Submission Process</h2>
+                <p>This diagram shows the steps involved in submitting a new expense voucher.</p>
+                <div class="flowchart-container">
+                    <div class="expense-submission-chart"></div>
+                </div>
+            </div>
+
+            <!-- Approval Workflow -->
+            <div class="doc-section">
+                <h2><i class="fas fa-check-circle me-2"></i>Approval Workflow</h2>
+                <p>This diagram outlines the approval process for expense vouchers.</p>
+                <div class="flowchart-container">
+                    <div class="approval-workflow-chart"></div>
+                </div>
+            </div>
+
+            <!-- Finance Processing Flow -->
+            <div class="doc-section">
+                <h2><i class="fas fa-money-bill-wave me-2"></i>Finance Processing Flow</h2>
+                <p>This diagram details how finance personnel process approved expense vouchers.</p>
+                <div class="flowchart-container">
+                    <div class="finance-processing-chart"></div>
+                </div>
+            </div>
+
+            <!-- Supplementary Documents Flow -->
+            <div class="doc-section">
+                <h2><i class="fas fa-file-upload me-2"></i>Supplementary Documents Flow</h2>
+                <p>This diagram shows the process for requesting and uploading supplementary documents.</p>
+                <div class="flowchart-container">
+                    <div class="supplementary-docs-chart"></div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- User Journeys Tab -->
+        <div class="tab-pane fade" id="user-journeys" role="tabpanel" aria-labelledby="user-journeys-tab">
+            <!-- Regular User Journey -->
+            <div class="doc-section">
+                <h2><i class="fas fa-user me-2"></i>Regular User Journey</h2>
+                <p>This diagram shows the typical journey of a regular user submitting and tracking expenses.</p>
+                <div class="flowchart-container">
+                    <div class="regular-user-journey-chart"></div>
+                </div>
+                <div class="mt-4">
+                    <h3>Regular User Access Permissions</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Create and submit new expense vouchers</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View their own submitted EPVs</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>See only cost centers they've submitted EPVs for in the dashboard filters</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Track the status of their submissions</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View rejection reasons if an EPV is rejected</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Resubmit rejected EPVs with corrections</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Upload missing documents when requested by Finance</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Cost Center Approver Journey -->
+            <div class="doc-section">
+                <h2><i class="fas fa-user-check me-2"></i>Cost Center Approver Journey</h2>
+                <p>This diagram shows the journey of a cost center approver reviewing and approving expenses.</p>
+                <div class="flowchart-container">
+                    <div class="cost-center-approver-journey-chart"></div>
+                </div>
+                <div class="mt-4">
+                    <h3>Cost Center Approver Access Permissions</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View EPVs submitted for their assigned cost centers</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Approve or reject EPVs for their cost centers</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Provide rejection reasons when rejecting an EPV</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Access the Cost Center Admin menu</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Submit their own expenses (as a regular user)</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View cost center metrics and filter EPVs by status/date</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Finance User Journey -->
+            <div class="doc-section">
+                <h2><i class="fas fa-user-tie me-2"></i>Finance User Journey</h2>
+                <p>This diagram shows the journey of finance personnel processing approved expenses.</p>
+                <div class="flowchart-container">
+                    <div class="finance-user-journey-chart"></div>
+                </div>
+                <div class="mt-4">
+                    <h3>Finance User Access Permissions</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Access the Finance Dashboard</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View approved EPVs pending finance processing</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Process approved EPVs (enter transaction ID and payment date)</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Request additional documents from submitters</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Reject EPVs with detailed reasons</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Submit processed EPVs for Finance Approver review</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View only cities assigned to them in city dropdown filters</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Submit their own expenses (as a regular user)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Finance Approver Journey -->
+            <div class="doc-section">
+                <h2><i class="fas fa-user-cog me-2"></i>Finance Approver Journey</h2>
+                <p>This diagram shows the journey of finance approvers reviewing and approving finance entries.</p>
+                <div class="flowchart-container">
+                    <div class="finance-approver-journey-chart"></div>
+                </div>
+                <div class="mt-4">
+                    <h3>Finance Approver Access Permissions</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Access the Finance Dashboard</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View finance entries pending approval</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Approve or reject finance entries</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Provide rejection reasons when rejecting a finance entry</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Manage city assignments for Finance users</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Access the Settings menu</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Set max_days_past (1-200) in settings_finance table</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Set academic_year in settings table</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Submit their own expenses (as a regular user)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Super Admin Journey -->
+            <div class="doc-section">
+                <h2><i class="fas fa-user-shield me-2"></i>Super Admin Journey</h2>
+                <p>This diagram shows the journey of a Super Admin managing the system.</p>
+                <div class="mt-4">
+                    <h3>Super Admin Access Permissions</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Access to all system functions</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Manage cost centers (add, edit, deactivate)</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Manage employees (add, edit, assign roles)</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Manage expense heads (add, edit, deactivate)</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View all EPVs in the system regardless of status</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>Access system settings and configuration</li>
+                        <li class="list-group-item"><i class="fas fa-check-circle text-success me-2"></i>View all cost centers in the dashboard filters</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google-like Documentation Tab -->
+        <div class="tab-pane fade" id="google-docs" role="tabpanel" aria-labelledby="google-docs-tab">
+            <div class="doc-section">
+                <h2><i class="fas fa-book me-2"></i>EPV System User Guide</h2>
+                <p>This comprehensive guide explains how to use the EPV system for different user roles.</p>
+
+                <!-- Regular User Guide -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0"><i class="fas fa-user me-2"></i>Regular User Guide</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>Submitting an Expense</h4>
+                        <ol>
+                            <li>Log in to the EPV system using your Google account</li>
+                            <li>From the dashboard, click "Create New EPV"</li>
+                            <li>Fill in the expense details (date range, cost center, etc.)</li>
+                            <li>Add individual expense items with descriptions and amounts</li>
+                            <li>Upload supporting documentation (receipts, invoices, etc.)</li>
+                            <li>Review all information and click "Submit"</li>
+                            <li>Your expense will be sent to the appropriate approver</li>
+                        </ol>
+
+                        <h4>Tracking Your Expenses</h4>
+                        <ol>
+                            <li>From the dashboard, click "EPV Records"</li>
+                            <li>View the status of all your submitted expenses</li>
+                            <li>Click on any EPV ID to view detailed information</li>
+                            <li>Status badges indicate where your expense is in the workflow</li>
+                        </ol>
+
+                        <h4>Handling Rejected Expenses</h4>
+                        <ol>
+                            <li>If your expense is rejected, you'll receive an email notification</li>
+                            <li>Log in to the EPV system and view the rejected expense</li>
+                            <li>Read the rejection reason provided by the approver or finance team</li>
+                            <li>If rejected by Finance with "Upload missing document" option:</li>
+                            <ul>
+                                <li>Click "Upload Missing Documents" button</li>
+                                <li>Upload the requested documents</li>
+                                <li>The expense will be resubmitted to Finance for review</li>
+                            </ul>
+                            <li>If rejected with "Restart the whole process" option:</li>
+                            <ul>
+                                <li>Create a new EPV with corrected information</li>
+                            </ul>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Finance User Guide -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="mb-0"><i class="fas fa-money-bill me-2"></i>Finance User Guide</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>Processing Approved Expenses</h4>
+                        <ol>
+                            <li>Log in to the EPV system using your Google account</li>
+                            <li>Access the Finance Dashboard</li>
+                            <li>View the list of approved expenses pending finance processing</li>
+                            <li>Click on an EPV ID to view details</li>
+                            <li>Review the expense information and supporting documents</li>
+                            <li>If everything is in order, click "Process" and enter finance details</li>
+                            <li>Submit for Finance Approver review</li>
+                        </ol>
+
+                        <h4>Requesting Additional Documents</h4>
+                        <ol>
+                            <li>If documents are missing or unclear, click "Request Documents"</li>
+                            <li>Select "Upload the missing document" option</li>
+                            <li>Provide clear instructions about what documents are needed</li>
+                            <li>Click "Send Request"</li>
+                            <li>The submitter will be notified to upload additional documents</li>
+                            <li>Once uploaded, the expense will return to your queue for processing</li>
+                        </ol>
+
+                        <h4>Rejecting Expenses</h4>
+                        <ol>
+                            <li>If an expense cannot be processed, click "Reject"</li>
+                            <li>Select "Restart the whole process" option</li>
+                            <li>Provide a detailed reason for rejection</li>
+                            <li>Click "Reject"</li>
+                            <li>The submitter will be notified that they need to create a new EPV</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Finance Approver Guide -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h3 class="mb-0"><i class="fas fa-check-circle me-2"></i>Finance Approver Guide</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>Approving Finance Entries</h4>
+                        <ol>
+                            <li>Log in to the EPV system using your Google account</li>
+                            <li>Access the Finance Approver Dashboard</li>
+                            <li>View the list of processed expenses pending your approval</li>
+                            <li>Click on an EPV ID to view details</li>
+                            <li>Review the expense and finance processing information</li>
+                            <li>If everything is in order, click "Approve"</li>
+                            <li>The expense will be marked as fully processed</li>
+                        </ol>
+
+                        <h4>Rejecting Finance Entries</h4>
+                        <ol>
+                            <li>If there are issues with the finance processing, click "Reject"</li>
+                            <li>Provide a detailed reason for rejection</li>
+                            <li>The entry will be returned to the Finance user for correction</li>
+                        </ol>
+
+                        <h4>Managing System Settings</h4>
+                        <ol>
+                            <li>Access the Settings menu</li>
+                            <li>Update the maximum days past setting (1-200)</li>
+                            <li>Set the current academic year</li>
+                            <li>Assign cities to Finance users</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Supplementary Documents Process -->
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h3 class="mb-0"><i class="fas fa-file-upload me-2"></i>Supplementary Documents Process</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>For Users: Uploading Supplementary Documents</h4>
+                        <ol>
+                            <li>When Finance requests additional documents, you'll receive an email notification</li>
+                            <li>Log in to the EPV system and view the rejected expense</li>
+                            <li>Click the "Upload Missing Documents" button</li>
+                            <li>Upload the requested document(s)</li>
+                            <li>Add a description for each document</li>
+                            <li>Click "Submit"</li>
+                            <li>The system will merge your new documents with the original PDF</li>
+                            <li>The expense will be resubmitted to Finance for review</li>
+                        </ol>
+
+                        <h4>For Finance: Reviewing Supplementary Documents</h4>
+                        <ol>
+                            <li>When supplementary documents are uploaded, you'll receive an email notification</li>
+                            <li>Log in to the EPV system and access the Finance Dashboard</li>
+                            <li>The expense will appear in your queue with "Documents Uploaded" status</li>
+                            <li>Click on the EPV ID to view details</li>
+                            <li>Review the original expense and the supplementary documents</li>
+                            <li>Process or reject the expense as needed</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ Tab -->
+        <div class="tab-pane fade" id="faq" role="tabpanel" aria-labelledby="faq-tab">
+            <div class="doc-section">
+                <h2><i class="fas fa-question-circle me-2"></i>Frequently Asked Questions</h2>
+                <p>Find answers to common questions about the EPV system.</p>
+
+                <div class="accordion mt-4" id="faqAccordion">
+                    <!-- Question 1 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faqHeading1">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse1" aria-expanded="false" aria-controls="faqCollapse1">
+                                How do I submit a new expense voucher?
+                            </button>
+                        </h2>
+                        <div id="faqCollapse1" class="accordion-collapse collapse" aria-labelledby="faqHeading1" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>Log in to the EPV system using your Google account</li>
+                                    <li>From the dashboard, click "New Expense" in the navigation menu</li>
+                                    <li>Fill in the expense details (date range, cost center, etc.)</li>
+                                    <li>Add individual expense items with descriptions and amounts</li>
+                                    <li>Upload supporting documentation (receipts, invoices, etc.)</li>
+                                    <li>Review all information and click "Submit"</li>
+                                    <li>Click "Send for Approval" to submit the expense to your manager</li>
+                                </ol>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>Make sure to upload all required documentation before submitting to avoid rejection.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question 2 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faqHeading2">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse2" aria-expanded="false" aria-controls="faqCollapse2">
+                                What should I do if my expense is rejected?
+                            </button>
+                        </h2>
+                        <div id="faqCollapse2" class="accordion-collapse collapse" aria-labelledby="faqHeading2" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                <p>When your expense is rejected, you'll receive an email notification. The action you need to take depends on who rejected it and why:</p>
+
+                                <h5>If rejected by your manager:</h5>
+                                <ol>
+                                    <li>Log in to the EPV system and go to "EPV Records"</li>
+                                    <li>Find the rejected expense (it will have a "Rejected" badge)</li>
+                                    <li>Click on the EPV ID to view details</li>
+                                    <li>Read the rejection reason provided by your manager</li>
+                                    <li>Create a new EPV with corrected information</li>
+                                </ol>
+
+                                <h5>If rejected by Finance with "Upload Missing Document" option:</h5>
+                                <ol>
+                                    <li>Log in to the EPV system and go to "EPV Records"</li>
+                                    <li>Find the rejected expense</li>
+                                    <li>Click on the EPV ID to view details</li>
+                                    <li>Click the "Upload Missing Documents" button</li>
+                                    <li>Upload the requested document(s)</li>
+                                    <li>Add a description for each document</li>
+                                    <li>Click "Submit"</li>
+                                </ol>
+
+                                <h5>If rejected by Finance with "Restart Whole Process" option:</h5>
+                                <ol>
+                                    <li>Create a new EPV with corrected information</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question 3 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faqHeading3">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse3" aria-expanded="false" aria-controls="faqCollapse3">
+                                How do I approve an expense as a Cost Center Approver?
+                            </button>
+                        </h2>
+                        <div id="faqCollapse3" class="accordion-collapse collapse" aria-labelledby="faqHeading3" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                <p>As a Cost Center Approver, you'll receive email notifications when expenses are submitted for your approval. You can approve them in two ways:</p>
+
+                                <h5>Method 1: Via Email Link</h5>
+                                <ol>
+                                    <li>Open the approval email notification</li>
+                                    <li>Click the "View Details" button in the email</li>
+                                    <li>Review the expense details</li>
+                                    <li>Click the "Approve" button</li>
+                                </ol>
+
+                                <h5>Method 2: Via Cost Center Admin</h5>
+                                <ol>
+                                    <li>Log in to the EPV system</li>
+                                    <li>Click on "Admin" in the navigation menu</li>
+                                    <li>Select "Cost Center Admin" from the dropdown</li>
+                                    <li>View the list of pending approvals</li>
+                                    <li>Click on an EPV ID to view details</li>
+                                    <li>Review the expense information and supporting documents</li>
+                                    <li>Click the "Approve" button</li>
+                                </ol>
+
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Always review the expense details and supporting documentation carefully before approving.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question 4 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faqHeading4">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse4" aria-expanded="false" aria-controls="faqCollapse4">
+                                How do I process an expense as a Finance user?
+                            </button>
+                        </h2>
+                        <div id="faqCollapse4" class="accordion-collapse collapse" aria-labelledby="faqHeading4" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>Log in to the EPV system</li>
+                                    <li>Click on "Finance Dashboard" in the navigation menu</li>
+                                    <li>View the list of approved expenses pending finance processing</li>
+                                    <li>Click on an EPV ID to view details</li>
+                                    <li>Review the expense information and supporting documents</li>
+                                    <li>If everything is in order:
+                                        <ul>
+                                            <li>Click "Process"</li>
+                                            <li>Enter the transaction ID</li>
+                                            <li>Enter the payment date</li>
+                                            <li>Click "Submit for Approval"</li>
+                                        </ul>
+                                    </li>
+                                    <li>If documents are missing or unclear:
+                                        <ul>
+                                            <li>Click "Request Documents"</li>
+                                            <li>Select "Upload the missing document" option</li>
+                                            <li>Provide clear instructions about what documents are needed</li>
+                                            <li>Click "Send Request"</li>
+                                        </ul>
+                                    </li>
+                                    <li>If the expense cannot be processed:
+                                        <ul>
+                                            <li>Click "Reject"</li>
+                                            <li>Select "Restart the whole process" option</li>
+                                            <li>Provide a detailed reason for rejection</li>
+                                            <li>Click "Reject"</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question 5 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faqHeading5">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse5" aria-expanded="false" aria-controls="faqCollapse5">
+                                Why is my expense processing taking longer than expected?
+                            </button>
+                        </h2>
+                        <div id="faqCollapse5" class="accordion-collapse collapse" aria-labelledby="faqHeading5" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                <p>The standard processing time for expenses is 5 business days after manager approval. However, several factors can affect processing time:</p>
+
+                                <ul>
+                                    <li><strong>Missing or unclear documentation:</strong> If Finance needs additional documents, this will extend the processing time.</li>
+                                    <li><strong>High volume periods:</strong> During month-end or year-end closing periods, there may be a higher volume of expenses to process.</li>
+                                    <li><strong>Weekends and holidays:</strong> Processing days exclude Saturdays and Sundays.</li>
+                                    <li><strong>Complex expenses:</strong> Expenses with multiple items or special approval requirements may take longer to process.</li>
+                                </ul>
+
+                                <p>You can check the status of your expense in the EPV Records section. If your expense has been pending for more than 5 business days, you can contact the Finance team for an update.</p>
+
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>The processing time is calculated from the date of manager approval to the date of payment for regular expenses, or from the date of resubmission to the date of payment for resubmitted expenses.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question 6 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faqHeading6">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse6" aria-expanded="false" aria-controls="faqCollapse6">
+                                How do I upload missing documents when requested by Finance?
+                            </button>
+                        </h2>
+                        <div id="faqCollapse6" class="accordion-collapse collapse" aria-labelledby="faqHeading6" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li>When Finance requests additional documents, you'll receive an email notification</li>
+                                    <li>Log in to the EPV system and go to "EPV Records"</li>
+                                    <li>Find the expense with the "Documents Requested" status</li>
+                                    <li>Click on the EPV ID to view details</li>
+                                    <li>Click the "Upload Missing Documents" button (this button will only appear if Finance has requested documents)</li>
+                                    <li>Upload the requested document(s)</li>
+                                    <li>Add a description for each document</li>
+                                    <li>Click "Submit"</li>
+                                </ol>
+
+                                <p>The system will automatically merge your new documents with the original PDF and resubmit the expense to Finance for review.</p>
+
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>The "Upload Missing Documents" button will disappear after you've uploaded the requested documents. If you need to upload additional documents, contact the Finance team.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question 7 -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="faqHeading7">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapse7" aria-expanded="false" aria-controls="faqCollapse7">
+                                What do the different status badges mean?
+                            </button>
+                        </h2>
+                        <div id="faqCollapse7" class="accordion-collapse collapse" aria-labelledby="faqHeading7" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                <ul class="list-group">
+                                    <li class="list-group-item">
+                                        <span class="badge bg-secondary">Draft</span>
+                                        <span class="ms-2">The expense has been created but not yet submitted for approval.</span>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <span class="badge bg-info">Pending Approval</span>
+                                        <span class="ms-2">The expense has been submitted and is awaiting manager approval.</span>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <span class="badge bg-success">Approved</span>
+                                        <span class="ms-2">The expense has been approved by the manager and is awaiting finance processing.</span>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <span class="badge bg-danger">Rejected</span>
+                                        <span class="ms-2">The expense has been rejected by either the manager or finance team.</span>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <span class="badge bg-warning text-dark">Documents Requested</span>
+                                        <span class="ms-2">Finance has requested additional documents for this expense.</span>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <span class="badge bg-primary">Finance Processing</span>
+                                        <span class="ms-2">Finance is currently processing the expense.</span>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <span class="badge bg-info">Finance Approval Pending</span>
+                                        <span class="ms-2">The expense has been processed by Finance and is awaiting Finance Approver review.</span>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <span class="badge" style="background-color: #6c757d;">Processed</span>
+                                        <span class="ms-2">The expense has been fully processed and payment has been made.</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+<script>
+    // Initialize Mermaid
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose',
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        }
+    });
+
+    // Define flowchart diagrams
+    document.addEventListener('DOMContentLoaded', function() {
+        // User Authentication Flow
+        const authFlowChart = `
+        flowchart TD
+            A[User Visits Site] --> B{Has Active Session?}
+            B -->|Yes| C[Access Dashboard]
+            B -->|No| D[Redirect to Login]
+            D --> E[Google OAuth Login]
+            E --> F{First Time User?}
+            F -->|Yes| G[Create User Record]
+            F -->|No| H[Update User Info]
+            G --> I[Set Session Variables]
+            H --> I
+            I --> J{Check User Role}
+            J -->|Regular User| K[User Dashboard]
+            J -->|Finance| L[Finance Dashboard]
+            J -->|Finance Approver| M[Finance Approver Dashboard]
+            J -->|Super Admin| N[Admin Dashboard]
+            J -->|Cost Center Approver| O[Cost Center Admin Access]
+        `;
+
+        // Expense Submission Process
+        const expenseSubmissionChart = `
+        flowchart TD
+            A[User Initiates New Expense] --> B[Fill Expense Form]
+            B --> C[Add Expense Items]
+            C --> D[Upload Supporting Documents]
+            D --> E[Submit Expense]
+            E --> F[System Validates Expense]
+            F -->|Valid| G[Create EPV Record]
+            F -->|Invalid| H[Show Validation Errors]
+            H --> B
+            G --> I[Set Status to 'Submitted']
+            I --> J[Determine Approval Route]
+            J --> K[Notify Approver via Email]
+            K --> L[Return to Dashboard]
+        `;
+
+        // Approval Workflow
+        const approvalWorkflowChart = `
+        flowchart TD
+            A[Approver Receives Email] --> B[Click Approval Link]
+            B --> C[View EPV Details]
+            C --> D{Decision}
+            D -->|Approve| E[Update Status to 'Approved']
+            D -->|Reject| F[Provide Rejection Reason]
+            F --> G[Update Status to 'Rejected']
+            G --> H[Send Rejection Notification to Submitter]
+            E --> I[Check if Master Invoice]
+            I -->|Yes| J[Update Sub-Invoices Status]
+            I -->|No| K[Notify Finance Team]
+            J --> K
+            K --> L[EPV Ready for Finance Processing]
+        `;
+
+        // Finance Processing Flow
+        const financeProcessingChart = `
+        flowchart TD
+            A[Finance User Views Dashboard] --> B[See Pending EPVs]
+            B --> C[Select EPV for Processing]
+            C --> D[System Locks EPV]
+            D --> E[Review EPV Details]
+            E --> F{Decision}
+            F -->|Process| G[Enter Finance Details]
+            F -->|Request Documents| H1[Select 'Upload Missing Document']
+            F -->|Reject| H2[Select 'Restart Whole Process']
+            G --> I[Submit for Finance Approval]
+            H1 --> J1[Provide Document Request Details]
+            H2 --> J2[Provide Rejection Reason]
+            J1 --> K1[Set Status to 'Documents Requested']
+            J2 --> K2[Set Status to 'Rejected']
+            K1 --> L1[Notify Submitter]
+            K2 --> L2[Notify Submitter]
+            L1 --> M1[Submitter Uploads Documents]
+            M1 --> N1[System Merges Documents]
+            N1 --> O1[Return to Finance Queue]
+            O1 --> E
+            I --> P[Finance Approver Reviews]
+            P --> Q{Decision}
+            Q -->|Approve| R[Update to 'Finance Approved']
+            Q -->|Reject| S[Provide Rejection Reason]
+            S --> T[Update to 'Finance Rejected']
+            R --> U[Mark as Processed]
+            T --> V[Notify Finance User]
+            U --> W[Complete Finance Process]
+        `;
+
+
+
+        // User Journey Charts
+        const regularUserJourneyChart = `
+        journey
+            title Regular User Journey
+            section Authentication
+                Login with Google: 5: User
+                Access Dashboard: 5: User
+            section Expense Submission
+                Create New Expense: 5: User
+                Fill Expense Details: 4: User
+                Upload Documents: 4: User
+                Submit for Approval: 5: User
+            section Tracking
+                View EPV Records: 5: User
+                Check EPV Status: 5: User
+        `;
+
+        const costCenterApproverJourneyChart = `
+        journey
+            title Cost Center Approver Journey
+            section Authentication
+                Login with Google: 5: Approver
+                Access Dashboard: 5: Approver
+            section Approval Tasks
+                Access Cost Center Admin: 5: Approver
+                View Pending Approvals: 5: Approver
+                Review EPV Details: 4: Approver
+                Approve/Reject EPVs: 5: Approver
+        `;
+
+        const financeUserJourneyChart = `
+        journey
+            title Finance User Journey
+            section Authentication
+                Login with Google: 5: Finance
+                Access Finance Dashboard: 5: Finance
+            section Processing
+                View Pending EPVs: 5: Finance
+                Process or Reject EPV: 5: Finance
+                Enter Finance Details: 4: Finance
+                Submit for Approval: 5: Finance
+        `;
+
+        const financeApproverJourneyChart = `
+        journey
+            title Finance Approver Journey
+            section Authentication
+                Login with Google: 5: Finance Approver
+                Access Finance Dashboard: 5: Finance Approver
+            section Approval
+                View Pending Finance Entries: 5: Finance Approver
+                Approve/Reject Entries: 5: Finance Approver
+        `;
+
+        // Function to render a chart with proper error handling
+        function renderChart(selector, chartContent) {
+            const element = document.querySelector(selector);
+            if (element) {
+                try {
+                    element.innerHTML = chartContent;
+                } catch (e) {
+                    console.error(`Error rendering chart for ${selector}:`, e);
+                    element.innerHTML = '<div class="alert alert-danger">Error rendering chart</div>';
+                }
+            }
+        }
+
+        // Supplementary Documents Flow
+        const supplementaryDocsChart = `
+        flowchart TD
+            A[Finance Reviews EPV] --> B{Documents Complete?}
+            B -->|Yes| C[Process EPV]
+            B -->|No| D[Click 'Request Documents']
+            D --> E{Select Rejection Type}
+            E -->|Upload Missing Document| F1[Provide Document Request Details]
+            E -->|Restart Whole Process| F2[Provide Full Rejection Reason]
+            F1 --> G1[Set Status: Documents Requested]
+            F2 --> G2[Set Status: Rejected]
+            G1 --> H1[Email Notification to Submitter]
+            G2 --> H2[Email Notification to Submitter]
+            H1 --> I[Submitter Views Rejected EPV]
+            I --> J[Click 'Upload Missing Documents']
+            J --> K[Upload Requested Document]
+            K --> L[Add Description]
+            L --> M[Submit]
+            M --> N[System Merges Documents]
+            N --> O[Update EPV Status]
+            O --> P[Email Notification to Finance]
+            P --> Q[Finance Reviews Updated EPV]
+            Q --> R{Documents Sufficient?}
+            R -->|Yes| S[Process EPV]
+            R -->|No| T[Request More Documents]
+            T --> F1
+        `;
+
+        // Render workflow charts
+        renderChart('.auth-flow-chart', authFlowChart);
+        renderChart('.expense-submission-chart', expenseSubmissionChart);
+        renderChart('.approval-workflow-chart', approvalWorkflowChart);
+        renderChart('.finance-processing-chart', financeProcessingChart);
+        renderChart('.supplementary-docs-chart', supplementaryDocsChart);
+
+
+
+        // Render user journey charts
+        renderChart('.regular-user-journey-chart', regularUserJourneyChart);
+        renderChart('.cost-center-approver-journey-chart', costCenterApproverJourneyChart);
+        renderChart('.finance-user-journey-chart', financeUserJourneyChart);
+        renderChart('.finance-approver-journey-chart', financeApproverJourneyChart);
+
+        // Render all mermaid diagrams with a slight delay to ensure DOM is ready
+        setTimeout(function() {
+            try {
+                mermaid.init(undefined, document.querySelectorAll('.flowchart-container div'));
+            } catch (e) {
+                console.error('Error initializing mermaid:', e);
+                document.querySelectorAll('.flowchart-container').forEach(container => {
+                    container.innerHTML = '<div class="alert alert-danger">Error rendering flowchart. Please try refreshing the page.</div>';
+                });
+            }
+        }, 100);
+    });
+</script>
+{% endblock %}

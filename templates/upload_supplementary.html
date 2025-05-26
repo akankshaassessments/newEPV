@@ -1,0 +1,153 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Upload Supplementary Documents{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Upload Supplementary Documents</h5>
+                    <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to EPV
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if epv.document_status == 'pending_additional_documents' %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Additional documents requested:</strong> {{ epv.requested_documents }}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        You can upload additional documents to supplement your existing EPV. These documents will be merged with your original submission.
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">EPV Details</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th style="width: 150px;">EPV ID:</th>
+                                    <td>{{ epv.epv_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Submitted By:</th>
+                                    <td>{{ epv.employee_name }} ({{ epv.email_id }})</td>
+                                </tr>
+                                <tr>
+                                    <th>Submission Date:</th>
+                                    <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Amount:</th>
+                                    <td>₹ {{ "{:,.2f}".format(epv.total_amount) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if epv.status == 'approved' else 'warning' if epv.status == 'pending_approval' else 'danger' if epv.status == 'rejected' else 'primary' }}">
+                                            {{ epv.status.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Current Document</h6>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('download_file', epv_id=epv.epv_id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-download me-1"></i> Download Current Document
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('upload_supplementary', epv_id=epv.epv_id) }}" enctype="multipart/form-data" id="uploadForm">
+                        <div id="documentsContainer">
+                            <div class="document-entry mb-3">
+                                <div class="mb-3">
+                                    <label for="document" class="form-label">Upload Document</label>
+                                    <input type="file" class="form-control" id="document" name="document" accept=".pdf,.jpg,.jpeg,.png" required>
+                                    <div class="form-text">
+                                        Accepted file types: PDF, JPG, JPEG, PNG. Maximum file size: 10MB.
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                                    <div class="form-text">
+                                        Provide a brief description of the document you are uploading.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <button type="button" id="addMoreBtn" class="btn btn-outline-secondary">
+                                <i class="fas fa-plus me-1"></i> Add More Documents
+                            </button>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload me-1"></i> Upload Documents
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const addMoreBtn = document.getElementById('addMoreBtn');
+                            const documentsContainer = document.getElementById('documentsContainer');
+                            let documentCount = 1;
+
+                            addMoreBtn.addEventListener('click', function() {
+                                documentCount++;
+                                const newEntry = document.createElement('div');
+                                newEntry.className = 'document-entry mb-3';
+                                newEntry.innerHTML = `
+                                    <hr>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Additional Document ${documentCount}</h6>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-document">
+                                            <i class="fas fa-times"></i> Remove
+                                        </button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="document${documentCount}" class="form-label">Upload Document</label>
+                                        <input type="file" class="form-control" id="document${documentCount}" name="document${documentCount}" accept=".pdf,.jpg,.jpeg,.png" required>
+                                        <div class="form-text">
+                                            Accepted file types: PDF, JPG, JPEG, PNG. Maximum file size: 10MB.
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="description${documentCount}" class="form-label">Description</label>
+                                        <textarea class="form-control" id="description${documentCount}" name="description${documentCount}" rows="3"></textarea>
+                                        <div class="form-text">
+                                            Provide a brief description of the document you are uploading.
+                                        </div>
+                                    </div>
+                                `;
+
+                                documentsContainer.appendChild(newEntry);
+
+                                // Add event listener to the remove button
+                                const removeBtn = newEntry.querySelector('.remove-document');
+                                removeBtn.addEventListener('click', function() {
+                                    documentsContainer.removeChild(newEntry);
+                                });
+                            });
+                        });
+                    </script>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

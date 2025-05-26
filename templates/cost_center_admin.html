@@ -1,0 +1,189 @@
+{% extends 'base_salesforce.html' %}
+
+{% block title %}Cost Center Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Cost Center Administration</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Cost Center Administration</li>
+    </ol>
+
+    <!-- Scorecard with Salesforce theme colors -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card mb-4" style="background-color: #0070d2; color: white;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Total EPVs</h5>
+                            <h2 class="mb-0">{{ scorecard_data.total_records }}</h2>
+                        </div>
+                        <i class="fas fa-file-invoice fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card mb-4" style="background-color: #ffb75d; color: #333;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Pending</h5>
+                            <h2 class="mb-0">{{ scorecard_data.pending_count }}</h2>
+                        </div>
+                        <i class="fas fa-clock fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card mb-4" style="background-color: #4bca81; color: white;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Approved</h5>
+                            <h2 class="mb-0">{{ scorecard_data.approved_count }}</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card mb-4" style="background-color: #e52d34; color: white;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">Rejected</h5>
+                            <h2 class="mb-0">{{ scorecard_data.rejected_count }}</h2>
+                        </div>
+                        <i class="fas fa-times-circle fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filters
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ url_for('cost_center_admin') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label for="cost_center" class="form-label">Cost Center</label>
+                    <select class="form-select" id="cost_center" name="cost_center">
+                        <option value="">All Cost Centers</option>
+                        {% for cc in cost_centers %}
+                        <option value="{{ cc.costcenter }}" {% if selected_cost_center == cc.costcenter %}selected{% endif %}>{{ cc.costcenter }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="expense_head" class="form-label">Expense Head</label>
+                    <select class="form-select" id="expense_head" name="expense_head">
+                        <option value="">All Expense Heads</option>
+                        {% for head in expense_heads %}
+                        <option value="{{ head.head_name }}" {% if selected_expense_head == head.head_name %}selected{% endif %}>{{ head.head_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="submitted" {% if selected_status == 'submitted' %}selected{% endif %}>Submitted</option>
+                        <option value="pending_approval" {% if selected_status == 'pending_approval' %}selected{% endif %}>Pending Approval</option>
+                        <option value="partially_approved" {% if selected_status == 'partially_approved' %}selected{% endif %}>Partially Approved</option>
+                        <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="time_period" class="form-label">Time Period</label>
+                    <select class="form-select" id="time_period" name="time_period">
+                        <option value="all" {% if selected_time_period == 'all' %}selected{% endif %}>All Time</option>
+                        <option value="this_month" {% if selected_time_period == 'this_month' %}selected{% endif %}>This Month</option>
+                        <option value="last_month" {% if selected_time_period == 'last_month' %}selected{% endif %}>Last Month</option>
+                        <option value="this_year" {% if selected_time_period == 'this_year' %}selected{% endif %}>This Year</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <a href="{{ url_for('cost_center_admin') }}" class="btn btn-secondary">Clear Filters</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EPV Records Table -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-table me-1"></i>
+            EPV Records
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="epvRecordsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>EPV ID</th>
+                            <th>Employee</th>
+                            <th>Cost Center</th>
+                            <th>Submission Date</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td>{{ record.epv_id }}</td>
+                            <td>{{ record.employee_name }}</td>
+                            <td>{{ record.cost_center_name }}</td>
+                            <td>{{ record.submission_date.strftime('%d-%m-%Y') }}</td>
+                            <td>Rs. {{ "%.2f"|format(record.total_amount) }}</td>
+                            <td>
+                                {% if record.status == 'submitted' %}
+                                <span class="badge bg-secondary">Submitted</span>
+                                {% elif record.status == 'pending_approval' %}
+                                <span class="badge bg-warning">Pending Approval</span>
+                                {% elif record.status == 'partially_approved' %}
+                                <span class="badge bg-info">Partially Approved</span>
+                                {% elif record.status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                                {% elif record.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ record.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('epv_record', epv_id=record.epv_id) }}" class="btn btn-sm btn-primary">View</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#epvRecordsTable').DataTable({
+            order: [[3, 'desc']], // Sort by submission date (column 3) in descending order
+            pageLength: 25,
+            responsive: true
+        });
+    });
+</script>
+{% endblock %}

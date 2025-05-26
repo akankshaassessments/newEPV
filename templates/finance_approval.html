@@ -1,0 +1,205 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Finance Approval - {{ epv.epv_id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Finance Approval - {{ epv.epv_id }}</h5>
+                    <a href="{{ url_for('finance_dashboard') }}" class="btn btn-sm btn-secondary" title="Back to Dashboard">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- EPV Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Expense Details</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>EPV ID</th>
+                                    <td>{{ epv.epv_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Employee</th>
+                                    <td>{{ epv.employee_name }} ({{ epv.employee_id }})</td>
+                                </tr>
+                                <tr>
+                                    <th>Cost Center</th>
+                                    <td>{{ epv.cost_center_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>City</th>
+                                    <td>{{ epv.cost_center.city }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Submission Date</th>
+                                    <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Total Amount</th>
+                                    <td>₹{{ epv.total_amount|round(2) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Merged PDF</th>
+                                    <td>
+                                        {% if epv.file_url %}
+                                            <a href="{{ epv.file_url }}" target="_blank" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-file-pdf"></i> View PDF
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">No file available</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Expense Items</h6>
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Expense Head</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in epv.items %}
+                                        <tr>
+                                            <td>{{ item.expense_head }}</td>
+                                            <td>{{ item.description }}</td>
+                                            <td>₹{{ item.amount|round(2) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Finance Entry Details -->
+                    <div class="mb-4">
+                        <h6>Finance Entry Details</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Processed By</th>
+                                <td>{{ entry.finance_user.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Entry Date</th>
+                                <td>{{ entry.entry_date.strftime('%d-%m-%Y') }}</td>
+                            </tr>
+                            <tr>
+                                <th>Vendor Name</th>
+                                <td>{{ entry.vendor_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Journal Entry</th>
+                                <td>{{ entry.journal_entry }}</td>
+                            </tr>
+                            <tr>
+                                <th>Payment Voucher</th>
+                                <td>{{ entry.payment_voucher }}</td>
+                            </tr>
+                            <tr>
+                                <th>Transaction ID</th>
+                                <td>{{ entry.transaction_id if entry.transaction_id else 'Not provided yet' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Date of Payment</th>
+                                <td>{{ entry.payment_date.strftime('%d-%m-%Y') if entry.payment_date else 'Not provided yet' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Amount</th>
+                                <td>₹{{ entry.amount|round(2) }}</td>
+                            </tr>
+                            <tr>
+                                <th>FCRA Status</th>
+                                <td>{{ entry.fcra_status }}</td>
+                            </tr>
+                            <tr>
+                                <th>Reason</th>
+                                <td>{{ entry.reason }}</td>
+                            </tr>
+                            <tr>
+                                <th>Comments</th>
+                                <td>{{ entry.comments }}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Approval Actions -->
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#approveModal" title="Approve">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal" title="Reject">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <!-- Approve Modal -->
+                    <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="approveModalLabel">Confirm Approval</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Are you sure you want to approve this finance entry?</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" title="Cancel">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </button>
+                                    <form method="POST" action="{{ url_for('finance_approval', entry_id=entry.id) }}">
+                                        <input type="hidden" name="action" value="approve">
+                                        <button type="submit" class="btn btn-success" title="Confirm Approval">
+                                            <i class="fas fa-check"></i> Confirm
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reject Modal -->
+                    <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="rejectModalLabel">Confirm Rejection</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('finance_approval', entry_id=entry.id) }}">
+                                    <div class="modal-body">
+                                        <input type="hidden" name="action" value="reject">
+                                        <div class="mb-3">
+                                            <label for="rejection_reason" class="form-label">Rejection Reason</label>
+                                            <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="3" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" title="Cancel">
+                                            <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-danger" title="Confirm Rejection">
+                                            <i class="fas fa-ban"></i> Confirm
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

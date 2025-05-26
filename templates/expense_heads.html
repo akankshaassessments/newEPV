@@ -1,0 +1,160 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Expense Heads - Expense Portal{% endblock %}
+
+{% block additional_styles %}
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .badge-active {
+        background-color: #4caf50;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    .badge-inactive {
+        background-color: #f44336;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    .form-switch {
+        display: inline-block;
+    }
+    .form-switch .form-check-input {
+        width: 3em;  /* Make the toggle wider */
+        height: 1.5em;  /* Make the toggle taller */
+        margin-top: 0.25em;  /* Adjust vertical alignment */
+        cursor: pointer;  /* Show pointer cursor on hover */
+    }
+    .form-switch .form-check-input:checked {
+        background-color: #4caf50;
+        border-color: #4caf50;
+    }
+    .form-switch .form-check-input:not(:checked) {
+        background-color: #f44336;
+        border-color: #f44336;
+    }
+{% endblock %}
+
+{% block content %}
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i> Expense Heads</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-end mb-3">
+                            <a href="{{ url_for('edit_expense_head') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i> Add Expense Head
+                            </a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Code</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for head in expense_heads %}
+                                    <tr>
+                                        <td>{{ head.id }}</td>
+                                        <td>{{ head.head_name }}</td>
+                                        <td>{{ head.head_code }}</td>
+                                        <td>{{ head.description }}</td>
+                                        <td>
+                                            {% if head.is_active %}
+                                            <span class="badge badge-active">Active</span>
+                                            {% else %}
+                                            <span class="badge badge-inactive">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-2">
+                                                <a href="{{ url_for('edit_expense_head', id=head.id) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <div class="form-check form-switch">
+                                                    <input type="checkbox" class="form-check-input status-toggle"
+                                                           {% if head.is_active %}checked{% endif %}
+                                                           data-id="{{ head.id }}" data-type="expense_head">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add event listeners to all status toggle switches
+        document.querySelectorAll('.status-toggle').forEach(function(toggle) {
+            toggle.addEventListener('change', function(event) {
+                const id = this.dataset.id;
+                const type = this.dataset.type;
+                const isChecked = this.checked;
+                const toggleElement = this;
+
+                // Prevent the loading screen from showing
+                event.preventDefault();
+
+                // Send AJAX request to toggle the status
+                fetch(`/${type}/${id}/toggle-status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update the badge without reloading the page
+                        const row = toggleElement.closest('tr');
+                        const statusBadge = row.querySelector('.badge');
+
+                        if (isChecked) {
+                            statusBadge.textContent = 'Active';
+                            statusBadge.classList.remove('badge-inactive');
+                            statusBadge.classList.add('badge-active');
+                        } else {
+                            statusBadge.textContent = 'Inactive';
+                            statusBadge.classList.remove('badge-active');
+                            statusBadge.classList.add('badge-inactive');
+                        }
+                    } else {
+                        // Revert the toggle if there was an error
+                        toggleElement.checked = !isChecked;
+                        alert('Failed to update status. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Revert the toggle if there was an error
+                    toggleElement.checked = !isChecked;
+                    alert('Failed to update status. Please try again.');
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

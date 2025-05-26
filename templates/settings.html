@@ -1,0 +1,428 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block additional_styles %}
+    /* Classic tab styling */
+    .nav-tabs {
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 20px;
+    }
+    .nav-tabs .nav-item {
+        margin-bottom: -1px;
+    }
+    .nav-tabs .nav-link {
+        border: 1px solid transparent;
+        border-top-left-radius: 0.25rem;
+        border-top-right-radius: 0.25rem;
+        color: #495057;
+        background-color: #f8f9fa;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
+    }
+    .nav-tabs .nav-link:hover {
+        border-color: #e9ecef #e9ecef #dee2e6;
+        background-color: #e9ecef;
+    }
+    .nav-tabs .nav-link.active {
+        color: #495057;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+        font-weight: bold;
+    }
+
+    /* Table styling */
+    .table-responsive {
+        border-radius: 8px;
+        overflow: auto;
+        max-height: 500px;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .table-responsive thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+    }
+    .badge-active {
+        background-color: #4caf50;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    .badge-inactive {
+        background-color: #f44336;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    .form-switch {
+        display: inline-block;
+    }
+    .form-switch .form-check-input {
+        width: 3em;  /* Make the toggle wider */
+        height: 1.5em;  /* Make the toggle taller */
+        margin-top: 0.25em;  /* Adjust vertical alignment */
+        cursor: pointer;  /* Show pointer cursor on hover */
+    }
+    .form-switch .form-check-input:checked {
+        background-color: var(--sf-success);
+        border-color: var(--sf-success);
+    }
+    .form-switch .form-check-input:not(:checked) {
+        background-color: var(--sf-error);
+        border-color: var(--sf-error);
+    }
+
+    /* Tab content styling */
+    .tab-content {
+        padding-top: 1rem;
+    }
+    .tab-pane {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Settings</h5>
+                </div>
+                <div class="card-body">
+                    {% if session.get('employee_role') in ['Super Admin', 'Finance Approver'] %}
+                    <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+                        {% if session.get('employee_role') == 'Super Admin' %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if session.get('employee_role') == 'Super Admin' %}active{% endif %}" id="cost-centers-tab" data-bs-toggle="tab" data-bs-target="#cost-centers" type="button" role="tab" aria-controls="cost-centers" aria-selected="true">
+                                <i class="fas fa-building me-1"></i> Cost Centers
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="employees-tab" data-bs-toggle="tab" data-bs-target="#employees" type="button" role="tab" aria-controls="employees" aria-selected="false">
+                                <i class="fas fa-users me-1"></i> Employees
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="expense-heads-tab" data-bs-toggle="tab" data-bs-target="#expense-heads" type="button" role="tab" aria-controls="expense-heads" aria-selected="false">
+                                <i class="fas fa-list-alt me-1"></i> Expense Heads
+                            </button>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if session.get('employee_role') == 'Finance Approver' %}active{% endif %}" id="finance-settings-tab" data-bs-toggle="tab" data-bs-target="#finance-settings" type="button" role="tab" aria-controls="finance-settings" aria-selected="false">
+                                <i class="fas fa-cog me-1"></i> Finance Settings
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="settingsTabsContent">
+                        <div class="tab-pane fade {% if session.get('employee_role') == 'Super Admin' %}show active{% endif %}" id="cost-centers" role="tabpanel" aria-labelledby="cost-centers-tab">
+                            <!-- Cost Centers Content -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Cost Centers</h5>
+                                <a href="{{ url_for('edit_cost_center') }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i> Add Cost Center
+                                </a>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Cost Center</th>
+                                            <th>Drive ID</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for center in cost_centers %}
+                                        <tr>
+                                            <td>{{ center.id }}</td>
+                                            <td>{{ center.costcenter }}</td>
+                                            <td>{{ center.drive_id or 'Not set' }}</td>
+                                            <td>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input toggle-status" type="checkbox"
+                                                        data-id="{{ center.id }}"
+                                                        data-type="cost_center"
+                                                        {% if center.is_active %}checked{% endif %}>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('edit_cost_center', id=center.id) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="employees" role="tabpanel" aria-labelledby="employees-tab">
+                            <!-- Employees Content -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Employees</h5>
+                                <a href="{{ url_for('edit_employee') }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i> Add Employee
+                                </a>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Employee ID</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Manager</th>
+                                            <th>Role</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for employee in employees %}
+                                        <tr>
+                                            <td>{{ employee.id }}</td>
+                                            <td>{{ employee.employee_id }}</td>
+                                            <td>{{ employee.name }}</td>
+                                            <td>{{ employee.email }}</td>
+                                            <td>{{ employee.manager }}</td>
+                                            <td>{{ employee.role }}</td>
+                                            <td>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input toggle-status" type="checkbox"
+                                                        data-id="{{ employee.id }}"
+                                                        data-type="employee"
+                                                        {% if employee.is_active %}checked{% endif %}>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('edit_employee', id=employee.id) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="expense-heads" role="tabpanel" aria-labelledby="expense-heads-tab">
+                            <!-- Expense Heads Content -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Expense Heads</h5>
+                                <a href="{{ url_for('edit_expense_head') }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i> Add Expense Head
+                                </a>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Expense Head</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for head in expense_heads %}
+                                        <tr>
+                                            <td>{{ head.id }}</td>
+                                            <td>{{ head.head_name }}</td>
+                                            <td>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input toggle-status" type="checkbox"
+                                                        data-id="{{ head.id }}"
+                                                        data-type="expense_head"
+                                                        {% if head.is_active %}checked{% endif %}>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('edit_expense_head', id=head.id) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade {% if session.get('employee_role') == 'Finance Approver' %}show active{% endif %}" id="finance-settings" role="tabpanel" aria-labelledby="finance-settings-tab">
+                            <!-- Finance Settings Content -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Finance Settings</h5>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-body">
+                                    <form id="financeSettingsForm" method="POST" action="{{ url_for('update_finance_settings') }}">
+                                        <div class="mb-3">
+                                            <label for="maxDaysProcessing" class="form-label">Maximum Processing Days (SOP)</label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="maxDaysProcessing" name="max_days_processing"
+                                                    min="1" max="200"
+                                                    value="{{ finance_settings.get('max_days_processing', '5') }}"
+                                                    required>
+                                                <span class="input-group-text">days</span>
+                                            </div>
+                                            <div class="form-text">Set the maximum number of days for processing expenses (SOP). Value must be between 1 and 200.</div>
+
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="maxDaysPast" class="form-label">Maximum Days in Past for Claims</label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="maxDaysPast" name="max_days_past"
+                                                    min="1" max="365"
+                                                    value="{{ finance_settings.get('max_days_past', '30') }}"
+                                                    required>
+                                                <span class="input-group-text">days</span>
+                                            </div>
+                                            <div class="form-text">Set the maximum number of days in the past for expense claims. Value must be between 1 and 365.</div>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">Save Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Settings Change Log -->
+                            <div class="mt-4">
+                                <h6>Settings Change Log</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Setting</th>
+                                                <th>Previous Value</th>
+                                                <th>New Value</th>
+                                                <th>Updated By</th>
+                                                <th>Updated On</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for setting in finance_settings_log %}
+                                            <tr>
+                                                <td>{{ setting.setting_name }}</td>
+                                                <td>{{ setting.previous_value }}</td>
+                                                <td>{{ setting.setting_value }}</td>
+                                                <td>{{ setting.updated_by }}</td>
+                                                <td>{{ setting.updated_on.strftime('%d-%m-%Y %H:%M') }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i> You do not have permission to access settings. Only Super Admin and Finance Approver users can access this page.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle status switches
+        const toggles = document.querySelectorAll('.toggle-status');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const id = this.dataset.id;
+                const type = this.dataset.type;
+                const isActive = this.checked;
+
+                // Send AJAX request to toggle status
+                // Map the data-type to the correct URL
+                let endpoint;
+                if (type === 'cost_center') {
+                    endpoint = 'cost_center';
+                } else if (type === 'employee') {
+                    endpoint = 'employee';
+                } else if (type === 'expense_head') {
+                    endpoint = 'expense_head';
+                }
+
+                console.log(`Sending request to /${endpoint}/${id}/toggle-status`);
+                fetch(`/${endpoint}/${id}/toggle-status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ is_active: isActive })
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    if (data.success) {
+                        // Show success message
+                        const toast = document.createElement('div');
+                        toast.className = 'toast align-items-center text-white bg-success';
+                        toast.setAttribute('role', 'alert');
+                        toast.setAttribute('aria-live', 'assertive');
+                        toast.setAttribute('aria-atomic', 'true');
+                        toast.innerHTML = `
+                            <div class="d-flex">
+                                <div class="toast-body">
+                                    Status updated successfully.
+                                </div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                        `;
+                        document.body.appendChild(toast);
+                        const bsToast = new bootstrap.Toast(toast);
+                        bsToast.show();
+
+                        // Remove toast after it's hidden
+                        toast.addEventListener('hidden.bs.toast', function() {
+                            toast.remove();
+                        });
+                    } else {
+                        // Show error message and revert toggle
+                        this.checked = !isActive;
+                        alert('Failed to update status: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    // Show error message and revert toggle
+                    this.checked = !isActive;
+                    console.error('Error:', error);
+                    alert('An error occurred while updating status.');
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

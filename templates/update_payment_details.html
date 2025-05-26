@@ -1,0 +1,136 @@
+{% extends 'base_salesforce.html' %}
+
+{% block title %}Update Payment Details - EPV System{% endblock %}
+
+{% block content %}
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Update Payment Details</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h5>EPV Details</h5>
+                                <table class="table table-bordered">
+                                    <tr>
+                                        <th>EPV ID</th>
+                                        <td>{{ epv.epv_id }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Submitted By</th>
+                                        <td>{{ epv.employee_name }} ({{ epv.email_id }})</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Cost Center</th>
+                                        <td>{{ epv.cost_center.costcenter if epv.cost_center else 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Total Amount</th>
+                                        <td>₹{{ epv.total_amount|float|round(2) }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h5>Finance Entry Details</h5>
+                                <table class="table table-bordered">
+                                    <tr>
+                                        <th>Vendor Name</th>
+                                        <td>{{ entry.vendor_name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Journal Entry</th>
+                                        <td>{{ entry.journal_entry }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Payment Voucher</th>
+                                        <td>{{ entry.payment_voucher }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Amount</th>
+                                        <td>₹{{ entry.amount|round(2) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>FCRA Status</th>
+                                        <td>{{ entry.fcra_status }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Processed By</th>
+                                        <td>{{ entry.finance_user.name }} ({{ entry.finance_user.email }})</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Processed On</th>
+                                        <td>{{ entry.entry_date.strftime('%d-%m-%Y %H:%M:%S') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Approved By</th>
+                                        <td>{{ entry.approver.name }} ({{ entry.approver.email }})</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Approved On</th>
+                                        <td>{{ entry.approved_on.strftime('%d-%m-%Y %H:%M:%S') }}</td>
+                                    </tr>
+                                    {% if entry.payment_date %}
+                                    <tr>
+                                        <th>Processing Days</th>
+                                        <td>
+                                            {% if processing_days > 0 %}
+                                                {% if processing_days > max_days %}
+                                                    <span class="text-danger fw-bold">{{ processing_days }} days</span>
+                                                    <small class="text-danger d-block">Exceeds SOP of {{ max_days }} days</small>
+                                                {% else %}
+                                                    <span class="text-success fw-bold">{{ processing_days }} days</span>
+                                                    <small class="text-success d-block">Within SOP of {{ max_days }} days</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Not calculated</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                </table>
+                            </div>
+                        </div>
+
+                        <form action="{{ url_for('update_payment_details', entry_id=entry.id) }}" method="POST">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="transaction_id" class="form-label">Transaction ID</label>
+                                    <input type="text" class="form-control" id="transaction_id" name="transaction_id" value="{{ entry.transaction_id or '' }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="payment_date" class="form-label">Date of Payment</label>
+                                    <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ entry.payment_date.strftime('%Y-%m-%d') if entry.payment_date else '' }}" required>
+                                    <small class="text-muted">
+                                        Note: Processing days will be calculated from
+                                        {% if epv.document_status == 'documents_uploaded' %}
+                                            resubmission date to payment date
+                                        {% else %}
+                                            manager approval date to payment date
+                                        {% endif %}
+                                        (excluding weekends)
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <a href="{{ url_for('finance_dashboard') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i> Update Payment Details
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

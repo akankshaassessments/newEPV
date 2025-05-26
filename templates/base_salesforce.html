@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Expense Portal{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts - Salesforce Sans Alternative -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jQuery UI CSS -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <!-- Custom Theme CSS -->
+    <link href="{{ url_for('static', filename='css/theme.css') }}" rel="stylesheet">
+    <!-- Loading Screen CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loading-screen.css') }}">
+    <!-- Additional Custom Styles -->
+    <style>
+        :root {
+            /* Salesforce Lightning Design System Colors */
+            --sf-blue: #0070d2;
+            --sf-blue-hover: #005fb2;
+            --sf-blue-light: #e3f3ff;
+            --sf-neutral-light: #f3f3f3;
+            --sf-neutral-medium: #dddbda;
+            --sf-neutral-dark: #706e6b;
+            --sf-text: #16325c;
+            --sf-text-light: #54698d;
+            --sf-success: #04844b;
+            --sf-warning: #ffb75d;
+            --sf-error: #c23934;
+            --sf-border-radius: 4px;
+            --sf-shadow: 0 2px 2px 0 rgba(0,0,0,0.1);
+            --sf-shadow-medium: 0 4px 4px 0 rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: var(--sf-text);
+            background-color: var(--sf-neutral-light);
+            padding-top: 56px;
+            padding-bottom: 60px; /* Add padding for mobile bottom nav */
+            line-height: 1.5;
+        }
+
+        /* Adjust body padding for iPad */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            body {
+                padding-bottom: 70px; /* Match the taller nav bar on iPad */
+            }
+        }
+
+        /* Navbar styling */
+        .navbar {
+            background-color: white;
+            box-shadow: var(--sf-shadow);
+            border-bottom: 1px solid var(--sf-neutral-medium);
+            padding: 0;
+        }
+
+        .navbar-brand {
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            color: var(--sf-blue);
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-brand img {
+            max-height: 30px;
+            width: auto;
+        }
+
+        .navbar-nav .nav-link {
+            padding: 1rem;
+            color: var(--sf-text);
+            font-weight: 500;
+            font-size: 0.875rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: var(--sf-blue);
+            background-color: rgba(0, 112, 210, 0.05);
+        }
+
+        .navbar-nav .nav-link.active {
+            color: var(--sf-blue);
+            border-bottom: 2px solid var(--sf-blue);
+            background-color: var(--sf-blue-light);
+        }
+
+        /* Notification styles */
+        .notification-badge {
+            font-size: 0.65rem;
+            padding: 0.25rem 0.4rem;
+        }
+
+        .notification-dropdown {
+            padding: 0;
+        }
+
+        .notification-dropdown .dropdown-header {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .notification-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f1f1f1;
+        }
+
+        .notification-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Card styling */
+        .card {
+            border-radius: var(--sf-border-radius);
+            border: 1px solid var(--sf-neutral-medium);
+            box-shadow: var(--sf-shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid var(--sf-neutral-medium);
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--sf-text);
+        }
+
+        .card-header.bg-primary {
+            background-color: var(--sf-blue) !important;
+            color: white;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Button styling */
+        .btn {
+            font-weight: 500;
+            border-radius: var(--sf-border-radius);
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--sf-blue);
+            border-color: var(--sf-blue);
+        }
+
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: var(--sf-blue-hover);
+            border-color: var(--sf-blue-hover);
+        }
+
+        .btn-outline-primary {
+            color: var(--sf-blue);
+            border-color: var(--sf-blue);
+        }
+
+        .btn-outline-primary:hover, .btn-outline-primary:focus {
+            background-color: var(--sf-blue-light);
+            color: var(--sf-blue);
+            border-color: var(--sf-blue);
+        }
+
+        /* Form controls */
+        .form-control {
+            border-radius: var(--sf-border-radius);
+            border: 1px solid var(--sf-neutral-medium);
+            padding: 0.5rem 0.75rem;
+        }
+
+        .form-control:focus {
+            border-color: var(--sf-blue);
+            box-shadow: 0 0 0 1px var(--sf-blue);
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: var(--sf-text);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Table styling */
+        .table {
+            color: var(--sf-text);
+        }
+
+        .table thead th {
+            background-color: var(--sf-neutral-light);
+            color: var(--sf-text-light);
+            font-weight: 600;
+            border-bottom: 1px solid var(--sf-neutral-medium);
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table tbody td {
+            padding: 0.75rem;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--sf-neutral-medium);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: var(--sf-blue-light);
+        }
+
+        /* Badge styling */
+        .badge {
+            font-weight: 500;
+            padding: 0.35em 0.65em;
+            border-radius: 10rem;
+        }
+
+        .badge-active {
+            background-color: var(--sf-success);
+            color: white;
+        }
+
+        .badge-inactive {
+            background-color: var(--sf-error);
+            color: white;
+        }
+
+        /* User dropdown */
+        .user-dropdown {
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            border: 1px solid var(--sf-neutral-medium);
+        }
+
+        /* Page header */
+        .page-header {
+            background-color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--sf-neutral-medium);
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--sf-text);
+            margin-bottom: 0;
+        }
+
+        /* Utility classes */
+        .text-primary {
+            color: var(--sf-blue) !important;
+        }
+
+        .bg-primary {
+            background-color: var(--sf-blue) !important;
+        }
+
+        .border-primary {
+            border-color: var(--sf-blue) !important;
+        }
+
+        /* Loading screen adjustments */
+        .loading-screen {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        .loading-spinner {
+            border-top-color: var(--sf-blue);
+        }
+
+        .loading-text {
+            color: var(--sf-text);
+            font-weight: 500;
+        }
+
+        .loading-progress-bar {
+            background-color: var(--sf-neutral-medium);
+        }
+
+        .loading-progress-bar::after {
+            background-color: var(--sf-blue);
+        }
+
+        {% block additional_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-logo-container">
+            <div class="loading-spinner"></div>
+            <div class="loading-logo-wrapper">
+                <!-- Color version (background) -->
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Expense Portal Logo" class="loading-logo-color">
+                <!-- Grayscale overlay (gradually removed from bottom) -->
+                <div class="loading-logo-gray-overlay"></div>
+            </div>
+        </div>
+        <div class="loading-text">Loading Expense Portal...</div>
+        <div class="loading-progress">
+            <div class="loading-progress-bar"></div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Expense Portal Logo" height="30" class="me-2">
+                Expense Portal
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-th-large me-1"></i> Dashboard
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('new_expense') %}active{% endif %}" href="{{ url_for('new_expense') }}">
+                            <i class="fas fa-file-invoice-dollar me-1"></i> New Expense
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('epv_records') %}active{% endif %}" href="{{ url_for('epv_records') }}">
+                            <i class="fas fa-list-alt me-1"></i> EPV Records
+                        </a>
+                    </li>
+
+                    <!-- Standard Finance Dashboard for Finance roles -->
+                    {% if session.get('employee_role') in ['Finance', 'Finance Approver'] %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('finance_dashboard') %}active{% endif %}" href="{{ url_for('finance_dashboard') }}">
+                            <i class="fas fa-money-bill-wave me-1"></i> Finance Dashboard
+                        </a>
+                    </li>
+                    <!-- Reports menu temporarily hidden
+                    {% if session.get('employee_role') == 'Finance Approver' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('finance_reports') %}active{% endif %}" href="{{ url_for('finance_reports') }}">
+                            <i class="fas fa-chart-bar me-1"></i> Reports
+                        </a>
+                    </li>
+                    {% endif %}
+                    -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == url_for('epv_records') and request.args.get('view') == 'my_expenses' %}active{% endif %}" href="{{ url_for('epv_records', view='my_expenses') }}">
+                            <i class="fas fa-receipt me-1"></i> My Expenses
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Admin Dropdown Menu - For users with administrative roles -->
+                    {% if session.get('employee_role') == 'Finance Approver' or session.get('is_cost_center_approver') %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.path in [url_for('city_assignments'), url_for('cost_center_admin')] %}active{% endif %}"
+                           href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-cogs me-1"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            {% if session.get('employee_role') == 'Finance Approver' %}
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('city_assignments') %}active{% endif %}" href="{{ url_for('city_assignments') }}">
+                                    <i class="fas fa-map-marker-alt me-1"></i> City Assignments
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% if session.get('is_cost_center_approver') %}
+                            <li>
+                                <a class="dropdown-item {% if request.path == url_for('cost_center_admin') %}active{% endif %}" href="{{ url_for('cost_center_admin') }}">
+                                    <i class="fas fa-building me-1"></i> Cost Center Admin
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+                {% if session.get('email') %}
+                <div class="navbar-nav">
+                    <!-- Notification Bell -->
+                    <div class="nav-item dropdown me-3">
+                        <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-bell" style="font-size: 1.2rem;"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="notificationBadge">
+                                0
+                                <span class="visually-hidden">unread notifications</span>
+                            </span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end notification-dropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                            <h6 class="dropdown-header">Notifications</h6>
+                            <div class="notification-items" id="notificationItems">
+                                <!-- Notification items will be inserted here -->
+                                <div class="dropdown-item text-center text-muted py-3 no-notifications" id="noNotifications">
+                                    <i class="fas fa-check-circle mb-2" style="font-size: 1.5rem;"></i>
+                                    <p class="mb-0">You're all caught up!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Profile Dropdown -->
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle user-dropdown" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            {% if session.get('user_info', {}).get('picture') %}
+                            <img src="{{ session.get('user_info', {}).get('picture') }}" alt="{{ session.get('user_info', {}).get('name') }}" class="user-avatar">
+                            {% else %}
+                            <i class="fas fa-user-circle me-2"></i>
+                            {% endif %}
+                            <span>{{ session.get('user_info', {}).get('name', session.get('email', 'User')) }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-id-card me-2"></i> Profile</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('system_documentation') }}"><i class="fas fa-book me-2"></i> Documentation</a></li>
+                            {% if session.get('employee_role') in ['Super Admin', 'Finance Approver'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('settings') }}"><i class="fas fa-cog me-2"></i> Settings</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- JavaScript Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Loading Screen JavaScript -->
+    <script src="{{ url_for('static', filename='js/loading-screen.js') }}"></script>
+    {% block scripts %}{% endblock %}
+
+    <script>
+        // Show loading screen when navigating to a new page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize loading screen
+            if (typeof LoadingScreen !== 'undefined') {
+                // Ensure the loading screen element is available
+                if (!LoadingScreen.element) {
+                    LoadingScreen.element = document.getElementById('loadingScreen');
+                }
+            }
+
+            // Initialize notifications
+            initNotifications();
+        });
+
+        // Function to initialize and update notifications
+        function initNotifications() {
+            console.log('Initializing notifications...');
+
+            // Check if user is logged in by looking for notification elements
+            const notificationBadge = document.getElementById('notificationBadge');
+            const notificationItems = document.getElementById('notificationItems');
+            const noNotifications = document.getElementById('noNotifications');
+
+            console.log('Notification elements:', {
+                notificationBadge,
+                notificationItems,
+                noNotifications
+            });
+
+            // If any of these elements don't exist, the user might not be logged in
+            // or the page might not have loaded completely
+            if (!notificationBadge || !notificationItems || !noNotifications) {
+                console.log('Notification elements not found - user might not be logged in');
+                return;
+            }
+
+            // Fetch notifications from the server
+            console.log('Fetching notifications from server...');
+            fetch('/api/notifications')
+                .then(response => {
+                    console.log('Response received:', response);
+                    return response.json();
+                })
+                .then(notifications => {
+                    console.log('Notifications received:', notifications);
+                    // Update the notification badge
+                    const totalNotifications = notifications.length;
+                    if (totalNotifications > 0) {
+                        notificationBadge.textContent = totalNotifications;
+                        notificationBadge.style.display = 'block';
+
+                        // Hide the "no notifications" message
+                        noNotifications.style.display = 'none';
+
+                        // Clear existing notification items (except the "no notifications" message)
+                        Array.from(notificationItems.children).forEach(child => {
+                            if (!child.classList.contains('no-notifications')) {
+                                child.remove();
+                            }
+                        });
+
+                        // Add notification items
+                        notifications.forEach(notification => {
+                            const item = document.createElement('a');
+                            item.className = 'dropdown-item notification-item';
+                            item.href = notification.href;
+
+                            item.innerHTML = `
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas ${notification.icon} text-primary" style="font-size: 1.2rem;"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <p class="mb-0">${notification.message}</p>
+                                    </div>
+                                </div>
+                            `;
+
+                            // Insert before the "no notifications" message
+                            notificationItems.insertBefore(item, noNotifications);
+                        });
+                    } else {
+                        // No notifications
+                        notificationBadge.style.display = 'none';
+                        noNotifications.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching notifications:', error);
+                    // Hide the notification badge in case of error
+                    notificationBadge.style.display = 'none';
+                });
+        }
+
+        // Check if we're navigating back
+        const isBackNavigation = window.performance &&
+            window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD;
+
+        // Special handling for login page
+        const isLoginPage = window.location.pathname === '/' || window.location.pathname === '/login';
+
+        if (!isLoginPage && !isBackNavigation) {
+            // For non-login pages and not back navigation, show and then hide the loading screen
+            LoadingScreen.show(3);
+
+            // Hide loading screen when page is fully loaded
+            window.addEventListener('load', function() {
+                // Hide immediately when page is loaded
+                LoadingScreen.hide();
+            });
+        } else {
+            // For login page or back navigation, hide the loading screen initially
+            LoadingScreen.element.style.display = 'none';
+        }
+
+        // Show loading screen when clicking on navigation links
+        document.querySelectorAll('a:not([target="_blank"])').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                // Don't show loading screen for hash links (same page)
+                if (this.getAttribute('href') && this.getAttribute('href').startsWith('#')) {
+                    return;
+                }
+                // Don't show loading screen for JavaScript links
+                if (this.getAttribute('href') && this.getAttribute('href').startsWith('javascript:')) {
+                    return;
+                }
+
+                // Special handling for login button
+                if (this.classList.contains('google-login-btn')) {
+                    // For login button, show loading screen immediately
+                    if (LoadingScreen.element) {
+                        LoadingScreen.element.style.display = 'flex';
+                        LoadingScreen.element.classList.remove('fade-out');
+                    }
+                } else {
+                    // For other links, use normal show method
+                    LoadingScreen.show(3);
+                }
+            });
+        });
+
+        // Show loading screen when submitting forms
+        document.querySelectorAll('form').forEach(function(form) {
+            form.addEventListener('submit', function() {
+                LoadingScreen.show(3);
+            });
+        });
+
+        // Handle back button specifically
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // Page was loaded from cache (back/forward navigation)
+                console.log('Page loaded from cache (back/forward), hiding loading screen');
+                LoadingScreen.element.style.display = 'none';
+            }
+        });
+
+        // Mobile Menu functionality
+        const mobileMoreMenu = document.getElementById('mobileMoreMenu');
+        const mobileMorePanel = document.getElementById('mobileMorePanel');
+        const mobileMoreClose = document.getElementById('mobileMoreClose');
+
+        const mobileAdminMenu = document.getElementById('mobileAdminMenu');
+        const mobileAdminPanel = document.getElementById('mobileAdminPanel');
+        const mobileAdminClose = document.getElementById('mobileAdminClose');
+
+        // Create overlay element
+        const overlay = document.createElement('div');
+        overlay.className = 'mobile-overlay';
+        document.body.appendChild(overlay);
+
+        // Function to close all mobile panels
+        function closeAllMobilePanels() {
+            if (mobileMorePanel) mobileMorePanel.classList.remove('show');
+            if (mobileAdminPanel) mobileAdminPanel.classList.remove('show');
+            overlay.classList.remove('show');
+            document.body.style.overflow = ''; // Re-enable scrolling
+        }
+
+        // More Menu functionality
+        if (mobileMoreMenu && mobileMorePanel) {
+            // Open more menu
+            mobileMoreMenu.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeAllMobilePanels(); // Close any open panels first
+                mobileMorePanel.classList.add('show');
+                overlay.classList.add('show');
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
+            });
+
+            // Close more menu
+            if (mobileMoreClose) {
+                mobileMoreClose.addEventListener('click', function() {
+                    closeAllMobilePanels();
+                });
+            }
+
+            // Close when clicking a menu item
+            const moreMenuItems = mobileMorePanel.querySelectorAll('.more-menu-item');
+            moreMenuItems.forEach(function(item) {
+                // Skip items with onclick handlers
+                if (!item.hasAttribute('onclick')) {
+                    item.addEventListener('click', function() {
+                        // Only show loading screen for links that navigate
+                        if (typeof LoadingScreen !== 'undefined') {
+                            LoadingScreen.show(3);
+                        }
+                    });
+                }
+            });
+        }
+
+        // Admin Menu functionality
+        if (mobileAdminMenu && mobileAdminPanel) {
+            // Open admin menu
+            mobileAdminMenu.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeAllMobilePanels(); // Close any open panels first
+                mobileAdminPanel.classList.add('show');
+                overlay.classList.add('show');
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
+            });
+
+            // Close admin menu
+            if (mobileAdminClose) {
+                mobileAdminClose.addEventListener('click', function() {
+                    closeAllMobilePanels();
+                });
+            }
+
+            // Close when clicking a menu item
+            const adminMenuItems = mobileAdminPanel.querySelectorAll('.more-menu-item');
+            adminMenuItems.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    // Only show loading screen for links that navigate
+                    if (typeof LoadingScreen !== 'undefined') {
+                        LoadingScreen.show(3);
+                    }
+                });
+            });
+        }
+
+        // Close when clicking overlay
+        overlay.addEventListener('click', function() {
+            closeAllMobilePanels();
+        });
+    </script>
+
+    <!-- Mobile Bottom Navigation -->
+    <div class="mobile-bottom-nav">
+        <a href="{{ url_for('dashboard') }}" class="nav-item nav-link {% if request.path == url_for('dashboard') %}active{% endif %}">
+            <i class="fas fa-th-large"></i>
+            <span>Home</span>
+        </a>
+        <a href="{{ url_for('new_expense') }}" class="nav-item nav-link {% if request.path == url_for('new_expense') %}active{% endif %}">
+            <i class="fas fa-file-invoice-dollar"></i>
+            <span>New</span>
+        </a>
+        <a href="{{ url_for('epv_records') }}" class="nav-item nav-link {% if request.path == url_for('epv_records') %}active{% endif %}">
+            <i class="fas fa-list-alt"></i>
+            <span>Records</span>
+        </a>
+
+        <!-- Role-specific navigation items -->
+        {% if session.get('employee_role') in ['Finance', 'Finance Approver'] %}
+        <a href="{{ url_for('finance_dashboard') }}" class="nav-item nav-link {% if request.path == url_for('finance_dashboard') %}active{% endif %}">
+            <i class="fas fa-money-bill-wave"></i>
+            <span>Finance</span>
+        </a>
+        <!-- Reports menu temporarily hidden
+        {% if session.get('employee_role') == 'Finance Approver' %}
+        <a href="{{ url_for('finance_reports') }}" class="nav-item nav-link {% if request.path == url_for('finance_reports') %}active{% endif %}">
+            <i class="fas fa-chart-bar"></i>
+            <span>Reports</span>
+        </a>
+        {% endif %}
+        -->
+        {% endif %}
+
+        <!-- Admin menu item for mobile -->
+        {% if session.get('employee_role') == 'Finance Approver' or session.get('is_cost_center_approver') %}
+        <a href="#" class="nav-item nav-link mobile-admin-menu" id="mobileAdminMenu">
+            <i class="fas fa-cogs"></i>
+            <span>Admin</span>
+        </a>
+        {% endif %}
+
+        <!-- More menu for additional options -->
+        <a href="#" class="nav-item nav-link mobile-more-menu" id="mobileMoreMenu">
+            <i class="fas fa-ellipsis-h"></i>
+            <span>More</span>
+        </a>
+    </div>
+
+    <!-- Mobile More Menu (appears when clicking More) -->
+    <div class="mobile-more-panel" id="mobileMorePanel">
+        <div class="mobile-more-panel-header">
+            <h5>More Options</h5>
+            <button type="button" class="btn-close" id="mobileMoreClose"></button>
+        </div>
+        <div class="mobile-more-panel-body">
+            <a href="#" class="more-menu-item" onclick="document.getElementById('userDropdown').click(); return false;">
+                <i class="fas fa-user-circle"></i>
+                <span>Profile</span>
+            </a>
+            <a href="{{ url_for('system_documentation') }}" class="more-menu-item">
+                <i class="fas fa-book"></i>
+                <span>Documentation</span>
+            </a>
+            {% if session.get('employee_role') in ['Super Admin', 'Finance Approver'] %}
+            <a href="{{ url_for('settings') }}" class="more-menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+            {% endif %}
+            {% if session.get('employee_role') == 'Super Admin' %}
+            <a href="{{ url_for('cost_centers') }}" class="more-menu-item">
+                <i class="fas fa-building"></i>
+                <span>Cost Centers</span>
+            </a>
+            <a href="{{ url_for('employees') }}" class="more-menu-item">
+                <i class="fas fa-users"></i>
+                <span>Employees</span>
+            </a>
+            <a href="{{ url_for('expense_heads') }}" class="more-menu-item">
+                <i class="fas fa-tags"></i>
+                <span>Expense Heads</span>
+            </a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="more-menu-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Mobile Admin Menu (appears when clicking Admin) -->
+    <div class="mobile-more-panel" id="mobileAdminPanel">
+        <div class="mobile-more-panel-header">
+            <h5>Admin Options</h5>
+            <button type="button" class="btn-close" id="mobileAdminClose"></button>
+        </div>
+        <div class="mobile-more-panel-body">
+            {% if session.get('employee_role') == 'Finance Approver' %}
+            <a href="{{ url_for('city_assignments') }}" class="more-menu-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>City Assignments</span>
+            </a>
+            {% endif %}
+
+            {% if session.get('is_cost_center_approver') %}
+            <a href="{{ url_for('cost_center_admin') }}" class="more-menu-item">
+                <i class="fas fa-building"></i>
+                <span>Cost Center Admin</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <style>
+        /* Mobile Bottom Navigation */
+        .mobile-bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            height: 60px;
+        }
+
+        .mobile-bottom-nav .nav-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .mobile-bottom-nav .nav-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 0;
+            color: var(--sf-text-light);
+            font-size: 0.7rem;
+            height: 100%;
+        }
+
+        .mobile-bottom-nav .nav-link i {
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+
+        .mobile-bottom-nav .nav-link.active {
+            color: var(--sf-blue);
+        }
+
+        /* Mobile More Panel */
+        .mobile-more-panel {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1001;
+            height: 70vh;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .mobile-more-panel.show {
+            transform: translateY(0);
+            display: block;
+        }
+
+        .mobile-more-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--sf-neutral-medium);
+        }
+
+        .mobile-more-panel-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .mobile-more-panel-body {
+            padding: 16px;
+            overflow-y: auto;
+            max-height: calc(70vh - 60px);
+        }
+
+        .more-menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: var(--sf-text);
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .more-menu-item:hover {
+            background-color: var(--sf-neutral-light);
+        }
+
+        .more-menu-item i {
+            font-size: 1.2rem;
+            margin-right: 16px;
+            color: var(--sf-blue);
+            width: 24px;
+            text-align: center;
+        }
+
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .mobile-overlay.show {
+            display: block;
+        }
+
+        /* Fix for horizontal pills on mobile */
+        .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        .nav-tabs::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        .nav-tabs .nav-item {
+            float: none;
+            display: inline-block;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) { /* Increased to include iPad/tablet devices */
+            .container {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+
+            .card {
+                margin-bottom: 1rem;
+            }
+
+            .btn {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.875rem;
+            }
+
+            .table-responsive {
+                overflow-x: auto;
+            }
+
+            .mobile-bottom-nav {
+                display: flex;
+            }
+
+            .navbar-nav .nav-item:not(.dropdown) {
+                display: none; /* Hide regular nav items on mobile, except dropdown */
+            }
+        }
+
+        /* iPad-specific adjustments */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .mobile-bottom-nav {
+                height: 70px; /* Slightly taller for iPad */
+            }
+
+            .mobile-bottom-nav .nav-link i {
+                font-size: 1.5rem; /* Larger icons for iPad */
+                margin-bottom: 6px;
+            }
+
+            .mobile-bottom-nav .nav-link {
+                font-size: 0.8rem; /* Slightly larger text for iPad */
+            }
+
+            /* Adjust the more panel for iPad */
+            .mobile-more-panel {
+                height: 60vh; /* Slightly smaller panel on iPad */
+            }
+
+            .mobile-more-panel-body {
+                max-height: calc(60vh - 60px);
+            }
+
+            .more-menu-item {
+                padding: 14px 18px; /* Larger touch targets */
+                font-size: 1.1rem;
+            }
+
+            .more-menu-item i {
+                font-size: 1.4rem;
+                margin-right: 20px;
+            }
+        }
+    </style>
+</body>
+</html>

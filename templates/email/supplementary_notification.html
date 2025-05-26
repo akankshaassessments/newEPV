@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplementary Documents Uploaded</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #3f51b5;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #3f51b5;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+        }
+        .info-row {
+            margin-bottom: 10px;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 150px;
+            display: inline-block;
+        }
+        .alert {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3f51b5;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Supplementary Documents Uploaded</h2>
+    </div>
+    <div class="content">
+        <p>Dear {{ finance_user.name }},</p>
+        
+        <p>Supplementary documents have been uploaded for an expense voucher that was previously pending additional documents.</p>
+        
+        <div class="alert">
+            <p>The EPV has been automatically resubmitted for finance processing.</p>
+        </div>
+        
+        <h3>Expense Voucher Details:</h3>
+        <div class="info-row">
+            <span class="info-label">EPV ID:</span> {{ epv.epv_id }}
+        </div>
+        <div class="info-row">
+            <span class="info-label">Employee:</span> {{ epv.employee_name }} ({{ epv.email_id }})
+        </div>
+        <div class="info-row">
+            <span class="info-label">Amount:</span> ₹{{ epv.total_amount|float|round(2) }}
+        </div>
+        <div class="info-row">
+            <span class="info-label">Cost Center:</span> {{ epv.cost_center|get_cost_center_name }}
+        </div>
+        <div class="info-row">
+            <span class="info-label">Submission Date:</span> {{ epv.submission_date.strftime('%d-%m-%Y') if epv.submission_date else 'N/A' }}
+        </div>
+        
+        <p>Please review the updated expense voucher with the supplementary documents.</p>
+        
+        <a href="{{ base_url }}/epv-record/{{ epv.epv_id }}" class="button">View EPV Record</a>
+        
+        <p>Thank you,<br>Expense Management System</p>
+    </div>
+    <div class="footer">
+        <p>This is an automated message. Please do not reply to this email.</p>
+        <p>© {{ epv.submission_date.year if epv.submission_date else '2025' }} Akanksha Foundation</p>
+    </div>
+</body>
+</html>

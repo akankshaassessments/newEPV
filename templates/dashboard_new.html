@@ -1,0 +1,333 @@
+{% extends 'base_salesforce.html' %}
+
+{% block title %}Dashboard - Expense Management Portal{% endblock %}
+
+{% block additional_styles %}
+.feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--sf-blue);
+}
+.dashboard-card {
+    height: 100%;
+}
+.stat-card {
+    transition: transform 0.2s;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+{% endblock %}
+
+{% block content %}
+
+<!-- Main Content -->
+<main class="container mt-4">
+    <!-- Welcome Alert -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div id="welcomeAlert" class="alert alert-success d-flex align-items-center">
+                <i class="fas fa-check-circle me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>Welcome, {{ session.get('user_info').name }}!</strong>
+                    You're logged in to the Expense Management Portal.
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-hide welcome message script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get the welcome alert element
+            const welcomeAlert = document.getElementById('welcomeAlert');
+
+            // Set a timeout to hide the alert after 5 seconds
+            if (welcomeAlert) {
+                setTimeout(function() {
+                    // Create a bootstrap alert instance and close it
+                    const bsAlert = new bootstrap.Alert(welcomeAlert);
+                    bsAlert.close();
+                }, 5000); // 5000 milliseconds = 5 seconds
+            }
+        });
+    </script>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body p-3">
+                    <form id="dashboardFilters" method="GET" action="{{ url_for('dashboard') }}" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="expenseHeadFilter" class="form-label">Expense Head</label>
+                            <select class="form-select filter-select" id="expenseHeadFilter" name="expense_head">
+                                <option value="">All Expense Heads</option>
+                                {% for head in expense_heads %}
+                                <option value="{{ head.head_name }}" {% if selected_expense_head == head.head_name %}selected{% endif %}>{{ head.head_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-{% if is_finance_user %}3{% else %}4{% endif %}">
+                            <label for="costCenterFilter" class="form-label">Cost Center</label>
+                            <select class="form-select filter-select" id="costCenterFilter" name="cost_center">
+                                <option value="">All Cost Centers</option>
+                                {% for center in cost_centers %}
+                                <option value="{{ center.costcenter }}" {% if selected_cost_center == center.costcenter %}selected{% endif %}>{{ center.costcenter }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% if is_finance_user %}
+                        <div class="col-md-2">
+                            <label for="cityFilter" class="form-label">City</label>
+                            <select class="form-select filter-select" id="cityFilter" name="city">
+                                <option value="">All Cities</option>
+                                {% for city in cities %}
+                                <option value="{{ city }}" {% if selected_city == city %}selected{% endif %}>{{ city }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-{% if is_finance_user %}2{% else %}3{% endif %}">
+                            <label for="timePeriodFilter" class="form-label">Time Period</label>
+                            <select class="form-select filter-select" id="timePeriodFilter" name="time_period">
+                                <option value="all" {% if selected_time_period == 'all' or not selected_time_period %}selected{% endif %}>All Time</option>
+                                <option value="this_month" {% if selected_time_period == 'this_month' %}selected{% endif %}>This Month</option>
+                                <option value="last_month" {% if selected_time_period == 'last_month' %}selected{% endif %}>Last Month</option>
+                                <option value="this_year" {% if selected_time_period == 'this_year' %}selected{% endif %}>This Year</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" id="resetFiltersBtn" class="btn btn-outline-secondary w-100" title="Reset Filters">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="dashboard-stats mb-4">
+        <div class="stat-card">
+            <div class="stat-value text-primary">{{ dashboard_data.pending_claims }}</div>
+            <div class="stat-label">Pending Claims</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-success">{{ dashboard_data.approved_this_month }}</div>
+            <div class="stat-label">Approved This Month</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-info">{{ dashboard_data.total_amount }}</div>
+            <div class="stat-label">Total Amount</div>
+        </div>
+        <div class="stat-card">
+            {% set max_days = finance_settings.max_days_processing|default('5')|int %}
+            {% if dashboard_data.avg_processing_days > max_days %}
+                <div class="stat-value text-danger">{{ dashboard_data.avg_processing_time }}</div>
+                <div class="stat-label">Avg. Processing Time <i class="fas fa-exclamation-circle" title="Exceeds {{ max_days }}-day SOP"></i></div>
+            {% else %}
+                <div class="stat-value text-success">{{ dashboard_data.avg_processing_time }}</div>
+                <div class="stat-label">Avg. Processing Time <i class="fas fa-check-circle" title="Within {{ max_days }}-day SOP"></i></div>
+            {% endif %}
+            <div class="small text-muted text-center">SOP: {{ max_days }} days</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <h4 class="mb-3">Quick Actions</h4>
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card dashboard-card expense-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <h5 class="card-title">New Expense</h5>
+                    <p class="card-text">Create a new expense voucher for reimbursement.</p>
+                    <a href="{{ url_for('new_expense') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Create
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card dashboard-card expense-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-list-alt"></i>
+                    </div>
+                    <h5 class="card-title">My Expenses</h5>
+                    <p class="card-text">View and manage all your expense records.</p>
+                    <a href="{{ url_for('epv_records') }}" class="btn btn-primary">
+                        <i class="fas fa-eye me-1"></i> View Records
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card dashboard-card expense-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h5 class="card-title">Reports</h5>
+                    <p class="card-text">Generate and view expense reports and analytics.</p>
+                    <a href="#" class="btn btn-primary">
+                        <i class="fas fa-chart-bar me-1"></i> View Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Information -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">User Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="mb-3 text-primary">Google Account</h6>
+                            <p><strong>Name:</strong> {{ session.get('user_info').name }}</p>
+                            <p><strong>Email:</strong> {{ session.get('user_info').email }}</p>
+                            <p><strong>Google ID:</strong> {{ session.get('user_info').id }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-3 text-primary">Employee Details</h6>
+                            {% if session.get('employee_role') or session.get('employee_manager') or session.get('employee_id') %}
+                                <p><strong>Employee ID:</strong> {{ session.get('employee_id') or 'Not set' }}</p>
+                                <p><strong>Role:</strong> {{ session.get('employee_role') or 'Not set' }}</p>
+                                <p><strong>Manager:</strong> {{ session.get('employee_manager') or 'Not set' }}</p>
+                                {% if session.get('employee_role') == 'admin' %}
+                                <p>
+                                    <a href="{{ url_for('employees') }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-users me-1"></i> View All Employees
+                                    </a>
+                                </p>
+                                {% endif %}
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i> Your email is not registered in the employee database.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- JavaScript Dependencies -->
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+<!-- Login timing measurement script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if we have a login start time in localStorage
+        const loginStartTime = localStorage.getItem('loginStartTime');
+        if (loginStartTime) {
+            // Calculate how long the login process took
+            const endTime = new Date().getTime();
+            const loadTime = (endTime - parseInt(loginStartTime)) / 1000; // Convert to seconds
+
+            console.log('Login process took ' + loadTime.toFixed(2) + ' seconds');
+
+            // Update the LoadingScreen object with the measured time
+            if (window.LoadingScreen && typeof LoadingScreen.loadTimes === 'object') {
+                // Update the login time with a weighted average (80% new, 20% old)
+                const oldTime = LoadingScreen.loadTimes.login || 3;
+                const newTime = oldTime * 0.2 + loadTime * 0.8;
+
+                // Cap between 1-10 seconds
+                LoadingScreen.loadTimes.login = Math.max(1, Math.min(10, newTime));
+
+                console.log('Updated login load time to ' + LoadingScreen.loadTimes.login.toFixed(2) + ' seconds');
+            }
+
+            // Clear the start time
+            localStorage.removeItem('loginStartTime');
+        }
+    });
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-submit form when filters change
+        const filterForm = document.getElementById('dashboardFilters');
+        const filterSelects = filterForm.querySelectorAll('.filter-select');
+
+        // Add loading indicator
+        const addLoadingIndicator = (select) => {
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-border spinner-border-sm text-primary position-absolute';
+            spinner.style.right = '2.5rem';
+            spinner.style.top = '50%';
+            spinner.style.transform = 'translateY(-50%)';
+            spinner.style.display = 'none';
+            spinner.setAttribute('role', 'status');
+            spinner.innerHTML = '<span class="visually-hidden">Loading...</span>';
+
+            // Add the spinner after the select
+            select.parentNode.style.position = 'relative';
+            select.parentNode.appendChild(spinner);
+
+            return spinner;
+        };
+
+        // Add loading indicators to all selects
+        filterSelects.forEach(select => {
+            const spinner = addLoadingIndicator(select);
+
+            select.addEventListener('change', function() {
+                // Show spinner
+                spinner.style.display = 'inline-block';
+
+                // Show loading screen with shorter duration
+                if (typeof LoadingScreen !== 'undefined') {
+                    LoadingScreen.show(1);
+                }
+
+                // Submit the form
+                setTimeout(() => {
+                    filterForm.submit();
+                }, 100);
+            });
+        });
+
+        // Reset filters button functionality
+        const resetButton = document.getElementById('resetFiltersBtn');
+
+        resetButton.addEventListener('click', function() {
+            // Reset all selects to their appropriate default values
+            filterSelects.forEach(select => {
+                if (select.id === 'timePeriodFilter') {
+                    // For time period, set to "All Time"
+                    select.value = 'all';
+                } else {
+                    // For other filters, set to empty (All)
+                    select.value = '';
+                }
+            });
+
+            // Show loading screen
+            if (typeof LoadingScreen !== 'undefined') {
+                LoadingScreen.show(1);
+            }
+
+            // Submit the form
+            setTimeout(() => {
+                filterForm.submit();
+            }, 100);
+        });
+    });
+</script>
+{% endblock %}

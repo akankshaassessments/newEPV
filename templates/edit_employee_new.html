@@ -1,0 +1,106 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Employee - Expense Portal{% endblock %}
+
+{% block additional_styles %}
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .card-header {
+        font-weight: 500;
+    }
+{% endblock %}
+
+{% block content %}
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-{% if is_new %}plus{% else %}edit{% endif %} me-2"></i>
+                            {% if is_new %}Add New{% else %}Edit{% endif %} Employee
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="form-group">
+                                <label for="name" class="form-label">Employee Name</label>
+                                <input type="text" class="form-control" id="name" name="name"
+                                       value="{{ employee.name if not is_new else '' }}" required>
+                            </div>
+
+                            {% if is_new %}
+                            <div class="form-group">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            {% else %}
+                            <div class="form-group">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ employee.email }}" required>
+                            </div>
+                            {% endif %}
+
+                            <div class="form-group">
+                                <label for="employee_id" class="form-label">Employee ID</label>
+                                <input type="text" class="form-control" id="employee_id" name="employee_id"
+                                       value="{{ employee.employee_id if not is_new else '' }}" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="manager" class="form-label">Manager Email</label>
+                                <input type="text" class="form-control" id="manager" name="manager"
+                                       value="{{ employee.manager if not is_new else '' }}" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="manager_name" class="form-label">Manager Name</label>
+                                <input type="text" class="form-control" id="manager_name" name="manager_name"
+                                       value="{{ employee.manager_name if not is_new else '' }}">
+                                <div class="form-text text-muted">Optional: If left blank, the system will try to find the name from the manager's email</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="role" class="form-label">Role</label>
+                                <select class="form-select" id="role" name="role" required>
+                                    <option value="">Select a role</option>
+                                    <option value="Super Admin" {% if not is_new and employee.role == 'Super Admin' %}selected{% endif %}>Super Admin</option>
+                                    <option value="School Admin" {% if not is_new and employee.role == 'School Admin' %}selected{% endif %}>School Admin</option>
+                                    <option value="Central Admin" {% if not is_new and employee.role == 'Central Admin' %}selected{% endif %}>Central Admin</option>
+                                    <option value="Pune Staff" {% if not is_new and employee.role == 'Pune Staff' %}selected{% endif %}>Pune Staff</option>
+                                    <option value="Mumbai Staff" {% if not is_new and employee.role == 'Mumbai Staff' %}selected{% endif %}>Mumbai Staff</option>
+                                    <option value="Finance" {% if not is_new and employee.role == 'Finance' %}selected{% endif %}>Finance</option>
+                                    <option value="Finance Approver" {% if not is_new and employee.role == 'Finance Approver' %}selected{% endif %}>Finance Approver</option>
+                                    <!-- Legacy roles -->
+                                    <option value="admin" {% if not is_new and employee.role == 'admin' %}selected{% endif %}>Admin (Legacy)</option>
+                                    <option value="user" {% if not is_new and employee.role == 'user' %}selected{% endif %}>User (Legacy)</option>
+                                    <option value="approver" {% if not is_new and employee.role == 'approver' %}selected{% endif %}>Approver (Legacy)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                           {% if not is_new and employee.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">Active</label>
+                                </div>
+                                <div class="form-text text-muted">Inactive employees won't appear in dropdown menus</div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <a href="{{ url_for('employees') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i> Back to Employees
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i> {% if is_new %}Create{% else %}Update{% endif %} Employee
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+{% endblock %}

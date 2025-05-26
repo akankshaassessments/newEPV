@@ -1,0 +1,83 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Request Additional Documents{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Request Additional Documents</h5>
+                    <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to EPV
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Requesting additional documents will put this EPV in a special state where the submitter can upload the missing documents without going through the approval process again.
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">EPV Details</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th style="width: 150px;">EPV ID:</th>
+                                    <td>{{ epv.epv_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Submitted By:</th>
+                                    <td>{{ epv.employee_name }} ({{ epv.email_id }})</td>
+                                </tr>
+                                <tr>
+                                    <th>Submission Date:</th>
+                                    <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Amount:</th>
+                                    <td>₹ {{ "{:,.2f}".format(epv.total_amount) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if epv.status == 'approved' else 'warning' if epv.status == 'pending_approval' else 'danger' if epv.status == 'rejected' else 'primary' }}">
+                                            {{ epv.status.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Current Document</h6>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('download_file', epv_id=epv.epv_id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-download me-1"></i> Download Current Document
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('request_documents', epv_id=epv.epv_id) }}">
+                        <div class="mb-3">
+                            <label for="requestedDocuments" class="form-label">Specify what documents are missing</label>
+                            <textarea class="form-control" id="requestedDocuments" name="requested_documents" rows="4" required></textarea>
+                            <div class="form-text">
+                                Be specific about what documents are missing. For example: "Invoice for hotel stay", "Boarding pass for return flight", etc.
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i> Send Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

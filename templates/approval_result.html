@@ -1,0 +1,115 @@
+{% extends 'base_salesforce.html' %}
+
+{% block title %}Expense {{ result|capitalize }}{% endblock %}
+
+{% block additional_styles %}
+    .approved .card-header {
+        background-color: var(--success-color, #4caf50);
+    }
+
+    .rejected .card-header {
+        background-color: var(--danger-color, #f44336);
+    }
+
+    .card-header {
+        padding: 1.5rem;
+        color: white;
+    }
+
+    .expense-details {
+        margin-top: 1.5rem;
+    }
+
+    .expense-details dt {
+        font-weight: 600;
+        color: #555;
+    }
+
+    .expense-details dd {
+        margin-bottom: 0.75rem;
+    }
+
+    .icon-large {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <div class="card {{ result }}">
+            <div class="card-header text-center">
+                {% if result == 'approved' %}
+                    <i class="fas fa-check-circle icon-large"></i>
+                    <h2>Expense Approved</h2>
+                {% else %}
+                    <i class="fas fa-times-circle icon-large"></i>
+                    <h2>Expense Rejected</h2>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <p class="lead">{{ message }}</p>
+                </div>
+
+                <div class="expense-details">
+                    <h4>Expense Details</h4>
+                    <dl class="row">
+                        <dt class="col-sm-4">EPV ID:</dt>
+                        <dd class="col-sm-8">{{ epv.epv_id }}</dd>
+
+                        <dt class="col-sm-4">Employee:</dt>
+                        <dd class="col-sm-8">{{ epv.employee_name }} ({{ epv.employee_id }})</dd>
+
+                        <dt class="col-sm-4">Date Range:</dt>
+                        <dd class="col-sm-8">
+                            {% if epv.from_date and epv.to_date %}
+                                {{ epv.from_date }} to {{ epv.to_date }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Total Amount:</dt>
+                        <dd class="col-sm-8">₹{{ epv.total_amount|float|round(2) }}</dd>
+
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            {% if result == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                            {% else %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% endif %}
+                        </dd>
+
+                        {% if result == 'approved' %}
+                            <dt class="col-sm-4">Approved By:</dt>
+                            <dd class="col-sm-8">{{ epv.approved_by }}</dd>
+
+                            <dt class="col-sm-4">Approved On:</dt>
+                            <dd class="col-sm-8">{{ epv.approved_on.strftime('%Y-%m-%d %H:%M:%S') if epv.approved_on else 'N/A' }}</dd>
+                        {% else %}
+                            <dt class="col-sm-4">Rejected By:</dt>
+                            <dd class="col-sm-8">{{ epv.rejected_by }}</dd>
+
+                            <dt class="col-sm-4">Rejected On:</dt>
+                            <dd class="col-sm-8">{{ epv.rejected_on.strftime('%Y-%m-%d %H:%M:%S') if epv.rejected_on else 'N/A' }}</dd>
+
+                            <dt class="col-sm-4">Reason:</dt>
+                            <dd class="col-sm-8">{{ epv.rejection_reason }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+
+                <!-- Debug: Token value: {{ token|default('No token') }} -->
+                {% if request.args.get('token') is none %}
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('epv_records') }}" class="btn btn-primary">
+                        <i class="fas fa-list me-2"></i> Back to EPV Records
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

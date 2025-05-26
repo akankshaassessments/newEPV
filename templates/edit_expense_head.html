@@ -1,0 +1,69 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Expense Head - Expense Portal{% endblock %}
+
+{% block additional_styles %}
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .card-header {
+        font-weight: 500;
+    }
+{% endblock %}
+
+{% block content %}
+    <!-- Main Content -->
+    <main class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-{% if is_new %}plus{% else %}edit{% endif %} me-2"></i>
+                            {% if is_new %}Add New{% else %}Edit{% endif %} Expense Head
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="form-group">
+                                <label for="head_name" class="form-label">Expense Head Name</label>
+                                <input type="text" class="form-control" id="head_name" name="head_name"
+                                       value="{{ expense_head.head_name if not is_new else '' }}" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="head_code" class="form-label">Code</label>
+                                <input type="text" class="form-control" id="head_code" name="head_code"
+                                       value="{{ expense_head.head_code if not is_new else '' }}">
+                                <div class="form-text text-muted">Short code for the expense head (optional)</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3">{{ expense_head.description if not is_new else '' }}</textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                           {% if not is_new and expense_head.is_active %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_active">Active</label>
+                                </div>
+                                <div class="form-text text-muted">Inactive expense heads won't appear in dropdown menus</div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <a href="{{ url_for('expense_heads') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i> Back to Expense Heads
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i> {% if is_new %}Create{% else %}Update{% endif %} Expense Head
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+{% endblock %}
