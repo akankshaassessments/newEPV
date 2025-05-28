@@ -752,6 +752,384 @@ def send_split_invoice_approval_email(approver_email, employee_name, epv_id, tot
         print(f"DEBUG: Email sending traceback: {traceback.format_exc()}")
         return False, f"Error sending email: {str(e)}"
 
+def send_finance_entry_rejection_notification(entry, rejected_by, rejection_reason):
+    """Send a rejection notification email to the finance user who created the entry."""
+    print(f"DEBUG: send_finance_entry_rejection_notification called for entry ID: {entry.id}")
+
+    # Get recipient email (the finance user who created the entry)
+    recipient_email = entry.finance_user.email
+    if not recipient_email:
+        print("ERROR: No finance user email found in entry")
+        return False, "No finance user email found"
+
+    # Get sender email from environment
+    sender_email = os.environ.get('SMTP_USERNAME', "expense.system@akanksha.org")
+    print(f"DEBUG: Using sender email: {sender_email}")
+
+    # Create email subject
+    subject = f"Finance Entry Rejected: {entry.epv.epv_id}"
+    print(f"DEBUG: Email subject: {subject}")
+
+    # Create HTML content for the rejection notification
+    try:
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Finance Entry Rejected</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    margin: 0;
+                    padding: 0;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    border: 1px solid #ddd;
+                }}
+                .header {{
+                    background-color: #dc3545;
+                    color: white;
+                    padding: 15px;
+                    text-align: center;
+                    border-bottom: 2px solid #c82333;
+                }}
+                .content {{
+                    padding: 20px;
+                }}
+                .details-table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                }}
+                .details-table th,
+                .details-table td {{
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                }}
+                .details-table th {{
+                    background-color: #f2f2f2;
+                    width: 30%;
+                }}
+                .rejection-reason {{
+                    background-color: #f8d7da;
+                    border: 1px solid #f5c6cb;
+                    color: #721c24;
+                    padding: 15px;
+                    border-radius: 4px;
+                    margin: 20px 0;
+                }}
+                .footer {{
+                    margin-top: 30px;
+                    font-size: 12px;
+                    color: #777;
+                    text-align: center;
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                }}
+                .action-required {{
+                    background-color: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    color: #856404;
+                    padding: 15px;
+                    border-radius: 4px;
+                    margin: 20px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2 style="margin: 0;">Finance Entry Rejected</h2>
+                </div>
+                <div class="content">
+                    <p>Dear {entry.finance_user.name},</p>
+
+                    <p>Your finance entry has been <strong>rejected</strong> by the Finance Approver. Please review the details below:</p>
+
+                    <div>
+                        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #555;">Finance Entry Details</h3>
+                        <table class="details-table">
+                            <tr>
+                                <th>EPV ID</th>
+                                <td>{entry.epv.epv_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Employee</th>
+                                <td>{entry.epv.employee_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Cost Center</th>
+                                <td>{entry.epv.cost_center_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Amount</th>
+                                <td>₹{entry.amount:,.2f}</td>
+                            </tr>
+                            <tr>
+                                <th>Vendor Name</th>
+                                <td>{entry.vendor_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Journal Entry</th>
+                                <td>{entry.journal_entry if not entry.is_partial_payment else 'PARTIAL PAYMENT'}</td>
+                            </tr>
+                            <tr>
+                                <th>Payment Voucher</th>
+                                <td>{entry.payment_voucher if not entry.is_partial_payment else 'PARTIAL PAYMENT'}</td>
+                            </tr>
+                            <tr>
+                                <th>FCRA Status</th>
+                                <td>{entry.fcra_status if not entry.is_partial_payment else 'PARTIAL PAYMENT'}</td>
+                            </tr>
+                            <tr>
+                                <th>Rejected By</th>
+                                <td>{rejected_by}</td>
+                            </tr>
+                            <tr>
+                                <th>Rejection Date</th>
+                                <td>{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="rejection-reason">
+                        <h3 style="margin-top: 0;">Reason for Rejection:</h3>
+                        <p style="margin-bottom: 0;">{rejection_reason}</p>
+                    </div>
+
+                    <div class="action-required">
+                        <h3 style="margin-top: 0;">Action Required:</h3>
+                        <p style="margin-bottom: 0;">Please review the rejection reason and create a new finance entry with the necessary corrections. Contact the Finance Approver if you need clarification on the rejection.</p>
+                    </div>
+
+                    <p>If you have any questions about this rejection, please contact the Finance Approver or the finance team.</p>
+
+                    <p>Thank you,<br>Finance Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                    <p>© {datetime.now().year} Akanksha Foundation</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        print(f"DEBUG: Created HTML content for finance entry rejection notification, length: {len(html_content)}")
+    except Exception as e:
+        print(f"ERROR creating HTML content: {str(e)}")
+        import traceback
+        print(f"DEBUG: HTML content traceback: {traceback.format_exc()}")
+        return False, f"Error creating email content: {str(e)}"
+
+    # Send the email
+    try:
+        print(f"DEBUG: Sending finance entry rejection notification to {recipient_email}")
+        result = send_message(sender_email, recipient_email, subject, html_content)
+        print(f"DEBUG: Email send result: {result}")
+        return result
+    except Exception as e:
+        print(f"ERROR sending email: {str(e)}")
+        import traceback
+        print(f"DEBUG: Email sending traceback: {traceback.format_exc()}")
+        return False, f"Error sending email: {str(e)}"
+
+def send_finance_entry_rejection_notification(entry, rejected_by, rejection_reason):
+    """Send a rejection notification email to the finance user who created the entry."""
+    print(f"DEBUG: send_finance_entry_rejection_notification called for entry ID: {entry.id}")
+
+    # Get recipient email (the finance user who created the entry)
+    recipient_email = entry.finance_user.email
+    if not recipient_email:
+        print("ERROR: No finance user email found in entry")
+        return False, "No finance user email found"
+
+    # Get sender email from environment
+    sender_email = os.environ.get('SMTP_USERNAME', "expense.system@akanksha.org")
+    print(f"DEBUG: Using sender email: {sender_email}")
+
+    # Create email subject
+    subject = f"Finance Entry Rejected: {entry.epv.epv_id}"
+    print(f"DEBUG: Email subject: {subject}")
+
+    # Create HTML content for the rejection notification
+    try:
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Finance Entry Rejected</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    margin: 0;
+                    padding: 0;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    border: 1px solid #ddd;
+                }}
+                .header {{
+                    background-color: #dc3545;
+                    color: white;
+                    padding: 15px;
+                    text-align: center;
+                    border-bottom: 2px solid #c82333;
+                }}
+                .content {{
+                    padding: 20px;
+                }}
+                .details-table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                }}
+                .details-table th,
+                .details-table td {{
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                }}
+                .details-table th {{
+                    background-color: #f2f2f2;
+                    width: 30%;
+                }}
+                .rejection-reason {{
+                    background-color: #f8d7da;
+                    border: 1px solid #f5c6cb;
+                    color: #721c24;
+                    padding: 15px;
+                    border-radius: 4px;
+                    margin: 20px 0;
+                }}
+                .footer {{
+                    margin-top: 30px;
+                    font-size: 12px;
+                    color: #777;
+                    text-align: center;
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                }}
+                .action-required {{
+                    background-color: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    color: #856404;
+                    padding: 15px;
+                    border-radius: 4px;
+                    margin: 20px 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2 style="margin: 0;">Finance Entry Rejected</h2>
+                </div>
+                <div class="content">
+                    <p>Dear {entry.finance_user.name},</p>
+
+                    <p>Your finance entry has been <strong>rejected</strong> by the Finance Approver. Please review the details below:</p>
+
+                    <div>
+                        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #555;">Finance Entry Details</h3>
+                        <table class="details-table">
+                            <tr>
+                                <th>EPV ID</th>
+                                <td>{entry.epv.epv_id}</td>
+                            </tr>
+                            <tr>
+                                <th>Employee</th>
+                                <td>{entry.epv.employee_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Cost Center</th>
+                                <td>{entry.epv.cost_center_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Amount</th>
+                                <td>₹{entry.amount:,.2f}</td>
+                            </tr>
+                            <tr>
+                                <th>Vendor Name</th>
+                                <td>{entry.vendor_name}</td>
+                            </tr>
+                            <tr>
+                                <th>Journal Entry</th>
+                                <td>{entry.journal_entry if not entry.is_partial_payment else 'PARTIAL PAYMENT'}</td>
+                            </tr>
+                            <tr>
+                                <th>Payment Voucher</th>
+                                <td>{entry.payment_voucher if not entry.is_partial_payment else 'PARTIAL PAYMENT'}</td>
+                            </tr>
+                            <tr>
+                                <th>FCRA Status</th>
+                                <td>{entry.fcra_status if not entry.is_partial_payment else 'PARTIAL PAYMENT'}</td>
+                            </tr>
+                            <tr>
+                                <th>Rejected By</th>
+                                <td>{rejected_by}</td>
+                            </tr>
+                            <tr>
+                                <th>Rejection Date</th>
+                                <td>{datetime.now().strftime('%d-%m-%Y %H:%M:%S')}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="rejection-reason">
+                        <h3 style="margin-top: 0;">Reason for Rejection:</h3>
+                        <p style="margin-bottom: 0;">{rejection_reason}</p>
+                    </div>
+
+                    <div class="action-required">
+                        <h3 style="margin-top: 0;">Action Required:</h3>
+                        <p style="margin-bottom: 0;">Please review the rejection reason and edit your finance entry with the necessary corrections. Once you resubmit, it will go back to the Finance Approver for review.</p>
+                    </div>
+
+                    <p>If you have any questions about this rejection, please contact the Finance Approver or the finance team.</p>
+
+                    <p>Thank you,<br>Finance Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message. Please do not reply to this email.</p>
+                    <p>© {datetime.now().year} Akanksha Foundation</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        print(f"DEBUG: Created HTML content for finance entry rejection notification, length: {len(html_content)}")
+    except Exception as e:
+        print(f"ERROR creating HTML content: {str(e)}")
+        import traceback
+        print(f"DEBUG: HTML content traceback: {traceback.format_exc()}")
+        return False, f"Error creating email content: {str(e)}"
+
+    # Send the email
+    try:
+        print(f"DEBUG: Sending finance entry rejection notification to {recipient_email}")
+        result = send_message(sender_email, recipient_email, subject, html_content)
+        print(f"DEBUG: Email send result: {result}")
+        return result
+    except Exception as e:
+        print(f"ERROR sending email: {str(e)}")
+        import traceback
+        print(f"DEBUG: Email sending traceback: {traceback.format_exc()}")
+        return False, f"Error sending email: {str(e)}"
+
 def send_email(to, subject, html_content, sender=None):
     """Send an email using SMTP."""
     # Get sender email from environment or use the provided sender

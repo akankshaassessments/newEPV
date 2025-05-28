@@ -1,0 +1,440 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Edit Finance Entry{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>Edit Finance Entry
+                    </h5>
+                    <div>
+                        <span class="badge bg-danger">REJECTED</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Rejection Information Alert -->
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Entry Rejected</h6>
+                        <p class="mb-2"><strong>Rejected by:</strong> {{ entry.approver.name if entry.approver else 'Finance Approver' }}</p>
+                        <p class="mb-0"><strong>Reason:</strong> {{ entry.rejection_reason }}</p>
+                    </div>
+
+                    <!-- EPV Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6>EPV Information</h6>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th style="width: 20%;">EPV ID</th>
+                                    <td>{{ epv.epv_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Employee</th>
+                                    <td>{{ epv.employee_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Cost Center</th>
+                                    <td>{{ epv.cost_center_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Total Amount</th>
+                                    <td>₹{{ epv.total_amount|round(2) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Date Range</th>
+                                    <td>{{ epv.from_date.strftime('%d-%m-%Y') }} to {{ epv.to_date.strftime('%d-%m-%Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Receipt</th>
+                                    <td>
+                                        <a href="{{ epv.file_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-file-pdf me-1"></i>View Receipt
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Edit Finance Entry Form -->
+                    <form method="POST" action="{{ url_for('edit_finance_entry', entry_id=entry.id) }}">
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6>Finance Entry Details</h6>
+
+                                <!-- Entry Date -->
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="entry_date" class="form-label">Date of Entry</label>
+                                        <input type="date" class="form-control" id="entry_date" name="entry_date"
+                                               value="{{ entry.entry_date.strftime('%Y-%m-%d') if entry.entry_date else today.strftime('%Y-%m-%d') }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="vendor_name" class="form-label">Vendor Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="vendor_name" name="vendor_name"
+                                               value="{{ entry.vendor_name or '' }}" required autocomplete="off">
+                                        <small id="vendorNameHelp" class="form-text text-muted">Start typing to see suggestions from previous entries</small>
+                                    </div>
+                                </div>
+
+                                <!-- Reason -->
+                                <div class="mb-3">
+                                    <label for="reason" class="form-label">Reason</label>
+                                    <input type="text" class="form-control" id="reason" name="reason" value="{{ entry.reason or '' }}">
+                                </div>
+
+                                <!-- Comments -->
+                                <div class="mb-3">
+                                    <label for="comments" class="form-label">Comments</label>
+                                    <textarea class="form-control" id="comments" name="comments" rows="3">{{ entry.comments or '' }}</textarea>
+                                </div>
+
+                                <!-- Partial Payment Checkbox -->
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="is_partial_payment" name="is_partial_payment"
+                                               {% if entry.is_partial_payment %}checked{% endif %}>
+                                        <label class="form-check-label" for="is_partial_payment">
+                                            <strong>This is a partial payment</strong>
+                                            <small class="text-muted d-block">Check this if the payment will be split into two parts with different FCRA statuses</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Single Payment Fields -->
+                                <div id="single-payment-fields" {% if entry.is_partial_payment %}style="display: none;"{% endif %}>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="journal_entry" class="form-label">Journal Entry <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="journal_entry" name="journal_entry"
+                                                   value="{{ entry.journal_entry or '' }}">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_voucher" class="form-label">Payment Voucher <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="payment_voucher" name="payment_voucher"
+                                                   value="{{ entry.payment_voucher or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="transaction_id" class="form-label">Transaction ID</label>
+                                            <input type="text" class="form-control" id="transaction_id" name="transaction_id"
+                                                   value="{{ entry.transaction_id or '' }}" disabled>
+                                            <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_date" class="form-label">Date of Payment</label>
+                                            <input type="date" class="form-control" id="payment_date" name="payment_date"
+                                                   value="{{ entry.payment_date.strftime('%Y-%m-%d') if entry.payment_date else '' }}" disabled>
+                                            <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="amount" class="form-label">Amount <span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" id="amount" name="amount"
+                                                   value="{{ entry.amount if not entry.is_partial_payment else epv.total_amount }}">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="fcra_status" class="form-label">FCRA Status <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="fcra_status" name="fcra_status">
+                                                <option value="">Select FCRA Status</option>
+                                                <option value="MUM FCRA" {% if entry.fcra_status == 'MUM FCRA' %}selected{% endif %}>MUM FCRA</option>
+                                                <option value="MUM NONFC" {% if entry.fcra_status == 'MUM NONFC' %}selected{% endif %}>MUM NONFC</option>
+                                                <option value="PUN FCRA" {% if entry.fcra_status == 'PUN FCRA' %}selected{% endif %}>PUN FCRA</option>
+                                                <option value="PUN NONFC" {% if entry.fcra_status == 'PUN NONFC' %}selected{% endif %}>PUN NONFC</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Partial Payment Fields -->
+                                <div id="partial-payment-fields" {% if not entry.is_partial_payment %}style="display: none;"{% endif %}>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Partial Payment:</strong> Fill in the details for both payments. The total amount will be calculated automatically.
+                                    </div>
+
+                                    <!-- Payment 1 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0">Payment 1</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="journal_entry_1" class="form-label">Journal Entry 1 <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="journal_entry_1" name="journal_entry_1"
+                                                           value="{{ entry.journal_entry_1 or '' }}" placeholder="Enter journal entry for payment 1">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="payment_voucher_1" class="form-label">Payment Voucher 1 <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="payment_voucher_1" name="payment_voucher_1"
+                                                           value="{{ entry.payment_voucher_1 or '' }}" placeholder="Enter payment voucher for payment 1">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="amount_1" class="form-label">Amount 1 <span class="text-danger">*</span></label>
+                                                    <input type="number" step="0.01" class="form-control partial-amount" id="amount_1" name="amount_1"
+                                                           value="{{ entry.amount_1 or '' }}" placeholder="Enter amount for payment 1">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="fcra_status_1" class="form-label">FCRA Status 1 <span class="text-danger">*</span></label>
+                                                    <select class="form-select" id="fcra_status_1" name="fcra_status_1">
+                                                        <option value="">Select FCRA Status</option>
+                                                        <option value="MUM FCRA" {% if entry.fcra_status_1 == 'MUM FCRA' %}selected{% endif %}>MUM FCRA</option>
+                                                        <option value="MUM NONFC" {% if entry.fcra_status_1 == 'MUM NONFC' %}selected{% endif %}>MUM NONFC</option>
+                                                        <option value="PUN FCRA" {% if entry.fcra_status_1 == 'PUN FCRA' %}selected{% endif %}>PUN FCRA</option>
+                                                        <option value="PUN NONFC" {% if entry.fcra_status_1 == 'PUN NONFC' %}selected{% endif %}>PUN NONFC</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="transaction_id_1" class="form-label">Transaction ID 1</label>
+                                                    <input type="text" class="form-control" id="transaction_id_1" name="transaction_id_1"
+                                                           value="{{ entry.transaction_id_1 or '' }}" disabled placeholder="Will be enabled after approval">
+                                                    <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="payment_date_1" class="form-label">Date of Payment 1</label>
+                                                    <input type="date" class="form-control" id="payment_date_1" name="payment_date_1"
+                                                           value="{{ entry.payment_date_1.strftime('%Y-%m-%d') if entry.payment_date_1 else '' }}" disabled>
+                                                    <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Payment 2 -->
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">Payment 2</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="journal_entry_2" class="form-label">Journal Entry 2 <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="journal_entry_2" name="journal_entry_2"
+                                                           value="{{ entry.journal_entry_2 or '' }}" placeholder="Enter journal entry for payment 2">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="payment_voucher_2" class="form-label">Payment Voucher 2 <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control" id="payment_voucher_2" name="payment_voucher_2"
+                                                           value="{{ entry.payment_voucher_2 or '' }}" placeholder="Enter payment voucher for payment 2">
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="amount_2" class="form-label">Amount 2 <span class="text-danger">*</span></label>
+                                                    <input type="number" step="0.01" class="form-control partial-amount" id="amount_2" name="amount_2"
+                                                           value="{{ entry.amount_2 or '' }}" placeholder="Enter amount for payment 2">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="fcra_status_2" class="form-label">FCRA Status 2 <span class="text-danger">*</span></label>
+                                                    <select class="form-select" id="fcra_status_2" name="fcra_status_2">
+                                                        <option value="">Select FCRA Status</option>
+                                                        <option value="MUM FCRA" {% if entry.fcra_status_2 == 'MUM FCRA' %}selected{% endif %}>MUM FCRA</option>
+                                                        <option value="MUM NONFC" {% if entry.fcra_status_2 == 'MUM NONFC' %}selected{% endif %}>MUM NONFC</option>
+                                                        <option value="PUN FCRA" {% if entry.fcra_status_2 == 'PUN FCRA' %}selected{% endif %}>PUN FCRA</option>
+                                                        <option value="PUN NONFC" {% if entry.fcra_status_2 == 'PUN NONFC' %}selected{% endif %}>PUN NONFC</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="transaction_id_2" class="form-label">Transaction ID 2</label>
+                                                    <input type="text" class="form-control" id="transaction_id_2" name="transaction_id_2"
+                                                           value="{{ entry.transaction_id_2 or '' }}" disabled placeholder="Will be enabled after approval">
+                                                    <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label for="payment_date_2" class="form-label">Date of Payment 2</label>
+                                                    <input type="date" class="form-control" id="payment_date_2" name="payment_date_2"
+                                                           value="{{ entry.payment_date_2.strftime('%Y-%m-%d') if entry.payment_date_2 else '' }}" disabled>
+                                                    <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Total Amount Display -->
+                                    <div class="alert alert-secondary">
+                                        <strong>Total Amount: ₹<span id="total-amount">{{ entry.amount or 0 }}</span></strong>
+                                        <small class="d-block text-muted">This should match the EPV total amount of ₹{{ epv.total_amount|round(2) }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('finance_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-paper-plane me-2"></i>Update & Resubmit for Approval
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const partialPaymentCheckbox = document.getElementById('is_partial_payment');
+    const singlePaymentFields = document.getElementById('single-payment-fields');
+    const partialPaymentFields = document.getElementById('partial-payment-fields');
+    const partialAmountInputs = document.querySelectorAll('.partial-amount');
+    const totalAmountSpan = document.getElementById('total-amount');
+
+    // Toggle between single and partial payment fields
+    function togglePaymentFields() {
+        if (partialPaymentCheckbox.checked) {
+            singlePaymentFields.style.display = 'none';
+            partialPaymentFields.style.display = 'block';
+
+            // Clear single payment required attributes
+            singlePaymentFields.querySelectorAll('input[required], select[required]').forEach(input => {
+                input.removeAttribute('required');
+            });
+
+            // Add required attributes to partial payment fields
+            partialPaymentFields.querySelectorAll('input[data-required], select[data-required]').forEach(input => {
+                input.setAttribute('required', 'required');
+            });
+        } else {
+            singlePaymentFields.style.display = 'block';
+            partialPaymentFields.style.display = 'none';
+
+            // Add required attributes to single payment fields
+            singlePaymentFields.querySelectorAll('input, select').forEach(input => {
+                if (input.name !== 'comments') {
+                    input.setAttribute('required', 'required');
+                }
+            });
+
+            // Remove required attributes from partial payment fields
+            partialPaymentFields.querySelectorAll('input[required], select[required]').forEach(input => {
+                input.removeAttribute('required');
+            });
+        }
+
+        calculateTotal();
+    }
+
+    // Calculate total amount for partial payments
+    function calculateTotal() {
+        if (partialPaymentCheckbox.checked) {
+            let total = 0;
+            partialAmountInputs.forEach(input => {
+                const value = parseFloat(input.value) || 0;
+                total += value;
+            });
+            totalAmountSpan.textContent = total.toFixed(2);
+        }
+    }
+
+    // Event listeners
+    partialPaymentCheckbox.addEventListener('change', togglePaymentFields);
+    partialAmountInputs.forEach(input => {
+        input.addEventListener('input', calculateTotal);
+    });
+
+    // Initialize on page load
+    togglePaymentFields();
+
+    // Vendor name autocomplete functionality
+    const vendorNameInput = document.getElementById('vendor_name');
+    let vendorSuggestions = [];
+
+    // Fetch vendor suggestions from the server
+    async function fetchVendorSuggestions(query) {
+        try {
+            const response = await fetch(`/api/vendor-suggestions?q=${encodeURIComponent(query)}`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.suggestions || [];
+            }
+        } catch (error) {
+            console.error('Error fetching vendor suggestions:', error);
+        }
+        return [];
+    }
+
+    // Create and show suggestions dropdown
+    function showVendorSuggestions(suggestions) {
+        // Remove existing dropdown
+        const existingDropdown = document.getElementById('vendor-suggestions');
+        if (existingDropdown) {
+            existingDropdown.remove();
+        }
+
+        if (suggestions.length === 0) return;
+
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.id = 'vendor-suggestions';
+        dropdown.className = 'list-group position-absolute w-100';
+        dropdown.style.zIndex = '1000';
+        dropdown.style.maxHeight = '200px';
+        dropdown.style.overflowY = 'auto';
+
+        suggestions.forEach(suggestion => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action';
+            item.textContent = suggestion;
+            item.onclick = () => {
+                vendorNameInput.value = suggestion;
+                dropdown.remove();
+            };
+            dropdown.appendChild(item);
+        });
+
+        // Position dropdown
+        vendorNameInput.parentNode.style.position = 'relative';
+        vendorNameInput.parentNode.appendChild(dropdown);
+    }
+
+    // Handle vendor name input
+    let vendorTimeout;
+    vendorNameInput.addEventListener('input', function() {
+        clearTimeout(vendorTimeout);
+        const query = this.value.trim();
+
+        if (query.length >= 2) {
+            vendorTimeout = setTimeout(async () => {
+                const suggestions = await fetchVendorSuggestions(query);
+                showVendorSuggestions(suggestions);
+            }, 300);
+        } else {
+            const existingDropdown = document.getElementById('vendor-suggestions');
+            if (existingDropdown) {
+                existingDropdown.remove();
+            }
+        }
+    });
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!vendorNameInput.contains(event.target)) {
+            const existingDropdown = document.getElementById('vendor-suggestions');
+            if (existingDropdown) {
+                existingDropdown.remove();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

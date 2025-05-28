@@ -176,6 +176,25 @@ class FinanceEntry(db.Model):
     fcra_status = db.Column(db.String(20), nullable=False)  # 'FCRA', 'Non-FCRA'
     comments = db.Column(db.Text, nullable=True)
 
+    # Partial payment support
+    is_partial_payment = db.Column(db.Boolean, default=False)
+
+    # Payment 1 fields
+    journal_entry_1 = db.Column(db.String(50), nullable=True)  # Journal entry for first payment
+    payment_voucher_1 = db.Column(db.String(50), nullable=True)  # Payment voucher for first payment
+    amount_1 = db.Column(db.Float, nullable=True)  # First partial amount
+    fcra_status_1 = db.Column(db.String(20), nullable=True)  # FCRA status for first amount
+    transaction_id_1 = db.Column(db.String(100), nullable=True)  # Transaction ID for first payment
+    payment_date_1 = db.Column(db.DateTime, nullable=True)  # Payment date for first payment
+
+    # Payment 2 fields
+    journal_entry_2 = db.Column(db.String(50), nullable=True)  # Journal entry for second payment
+    payment_voucher_2 = db.Column(db.String(50), nullable=True)  # Payment voucher for second payment
+    amount_2 = db.Column(db.Float, nullable=True)  # Second partial amount
+    fcra_status_2 = db.Column(db.String(20), nullable=True)  # FCRA status for second amount
+    transaction_id_2 = db.Column(db.String(100), nullable=True)  # Transaction ID for second payment
+    payment_date_2 = db.Column(db.DateTime, nullable=True)  # Payment date for second payment
+
     # Payment details (added fields)
     transaction_id = db.Column(db.String(100), nullable=True)
     payment_date = db.Column(db.DateTime, nullable=True)
@@ -589,3 +608,68 @@ def init_db(app):
             # Commit the changes
             db.session.commit()
             print("Database initialized with expense heads.")
+
+        # Add partial payment columns to finance_entry table if they don't exist
+        if inspector.has_table('finance_entry'):
+            columns = [col['name'] for col in inspector.get_columns('finance_entry')]
+
+            if 'is_partial_payment' not in columns:
+                print("Adding is_partial_payment column to finance_entry table")
+                with db.engine.connect() as conn:
+                    conn.execute(db.text('ALTER TABLE finance_entry ADD COLUMN is_partial_payment BOOLEAN DEFAULT FALSE'))
+                    conn.commit()
+            else:
+                print("is_partial_payment column already exists in finance_entry table")
+
+            if 'amount_1' not in columns:
+                print("Adding amount_1 column to finance_entry table")
+                with db.engine.connect() as conn:
+                    conn.execute(db.text('ALTER TABLE finance_entry ADD COLUMN amount_1 FLOAT'))
+                    conn.commit()
+            else:
+                print("amount_1 column already exists in finance_entry table")
+
+            if 'fcra_status_1' not in columns:
+                print("Adding fcra_status_1 column to finance_entry table")
+                with db.engine.connect() as conn:
+                    conn.execute(db.text('ALTER TABLE finance_entry ADD COLUMN fcra_status_1 VARCHAR(20)'))
+                    conn.commit()
+            else:
+                print("fcra_status_1 column already exists in finance_entry table")
+
+            if 'amount_2' not in columns:
+                print("Adding amount_2 column to finance_entry table")
+                with db.engine.connect() as conn:
+                    conn.execute(db.text('ALTER TABLE finance_entry ADD COLUMN amount_2 FLOAT'))
+                    conn.commit()
+            else:
+                print("amount_2 column already exists in finance_entry table")
+
+            if 'fcra_status_2' not in columns:
+                print("Adding fcra_status_2 column to finance_entry table")
+                with db.engine.connect() as conn:
+                    conn.execute(db.text('ALTER TABLE finance_entry ADD COLUMN fcra_status_2 VARCHAR(20)'))
+                    conn.commit()
+            else:
+                print("fcra_status_2 column already exists in finance_entry table")
+
+            # Add additional partial payment fields
+            additional_fields = [
+                ('journal_entry_1', 'VARCHAR(50)', 'Journal Entry 1'),
+                ('payment_voucher_1', 'VARCHAR(50)', 'Payment Voucher 1'),
+                ('transaction_id_1', 'VARCHAR(100)', 'Transaction ID 1'),
+                ('payment_date_1', 'DATETIME', 'Payment Date 1'),
+                ('journal_entry_2', 'VARCHAR(50)', 'Journal Entry 2'),
+                ('payment_voucher_2', 'VARCHAR(50)', 'Payment Voucher 2'),
+                ('transaction_id_2', 'VARCHAR(100)', 'Transaction ID 2'),
+                ('payment_date_2', 'DATETIME', 'Payment Date 2')
+            ]
+
+            for field_name, field_type, field_desc in additional_fields:
+                if field_name not in columns:
+                    print(f"Adding {field_name} column to finance_entry table")
+                    with db.engine.connect() as conn:
+                        conn.execute(db.text(f'ALTER TABLE finance_entry ADD COLUMN {field_name} {field_type}'))
+                        conn.commit()
+                else:
+                    print(f"{field_name} column already exists in finance_entry table")

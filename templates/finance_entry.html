@@ -280,42 +280,171 @@
                                 <small id="vendorNameHelp" class="form-text text-muted">Start typing to see suggestions from previous entries</small>
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="journal_entry" class="form-label">Journal Entry</label>
-                                <input type="text" class="form-control" id="journal_entry" name="journal_entry" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="payment_voucher" class="form-label">Payment Voucher</label>
-                                <input type="text" class="form-control" id="payment_voucher" name="payment_voucher" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="transaction_id" class="form-label">Transaction ID</label>
-                                <input type="text" class="form-control" id="transaction_id" name="transaction_id" disabled>
-                                <small class="text-muted">This field will be enabled after Finance Approver approval</small>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="payment_date" class="form-label">Date of Payment</label>
-                                <input type="date" class="form-control" id="payment_date" name="payment_date" disabled>
-                                <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+
+                        <!-- Partial Payment Checkbox (moved above journal entry) -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="partial_payment" name="partial_payment">
+                                    <label class="form-check-label" for="partial_payment">
+                                        <strong>Partial Payment</strong>
+                                    </label>
+                                    <small class="form-text text-muted d-block">Check this if you want to split the payment into two parts with different details and FCRA statuses</small>
+                                </div>
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="amount" class="form-label">Amount</label>
-                                <input type="number" step="0.01" class="form-control" id="amount" name="amount" value="{{ epv.total_amount }}" required>
+
+                        <!-- Single Payment Fields (Default) -->
+                        <div id="single_payment_section">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="journal_entry" class="form-label">Journal Entry</label>
+                                    <input type="text" class="form-control" id="journal_entry" name="journal_entry" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="payment_voucher" class="form-label">Payment Voucher</label>
+                                    <input type="text" class="form-control" id="payment_voucher" name="payment_voucher" required>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="fcra_status" class="form-label">FCRA Status</label>
-                                <select class="form-select" id="fcra_status" name="fcra_status" required>
-                                    <option value="">Select FCRA Status</option>
-                                    <option value="MUM FCRA">MUM FCRA</option>
-                                    <option value="MUM NONFC">MUM NONFC</option>
-                                    <option value="PUN FCRA">PUN FCRA</option>
-                                    <option value="PUN NONFC">PUN NONFC</option>
-                                </select>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="transaction_id" class="form-label">Transaction ID</label>
+                                    <input type="text" class="form-control" id="transaction_id" name="transaction_id" disabled>
+                                    <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="payment_date" class="form-label">Date of Payment</label>
+                                    <input type="date" class="form-control" id="payment_date" name="payment_date" disabled>
+                                    <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Partial Payment Fields (Hidden by default) -->
+                        <div id="partial_payment_section" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Partial Payment Mode:</strong> Split the payment into two parts with separate details and FCRA statuses.
+                            </div>
+
+                            <!-- Payment 1 -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0"><i class="fas fa-money-bill me-2"></i>Payment 1</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="journal_entry_1" class="form-label">Journal Entry 1</label>
+                                            <input type="text" class="form-control" id="journal_entry_1" name="journal_entry_1" placeholder="Enter journal entry for payment 1">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_voucher_1" class="form-label">Payment Voucher 1</label>
+                                            <input type="text" class="form-control" id="payment_voucher_1" name="payment_voucher_1" placeholder="Enter payment voucher for payment 1">
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="amount_1" class="form-label">Amount 1</label>
+                                            <input type="number" step="0.01" class="form-control partial-amount" id="amount_1" name="amount_1" placeholder="Enter amount for payment 1">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="fcra_status_1" class="form-label">FCRA Status 1</label>
+                                            <select class="form-select" id="fcra_status_1" name="fcra_status_1">
+                                                <option value="">Select FCRA Status</option>
+                                                <option value="MUM FCRA">MUM FCRA</option>
+                                                <option value="MUM NONFC">MUM NONFC</option>
+                                                <option value="PUN FCRA">PUN FCRA</option>
+                                                <option value="PUN NONFC">PUN NONFC</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="transaction_id_1" class="form-label">Transaction ID 1</label>
+                                            <input type="text" class="form-control" id="transaction_id_1" name="transaction_id_1" disabled placeholder="Will be enabled after approval">
+                                            <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_date_1" class="form-label">Date of Payment 1</label>
+                                            <input type="date" class="form-control" id="payment_date_1" name="payment_date_1" disabled>
+                                            <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment 2 -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="fas fa-money-bill me-2"></i>Payment 2</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="journal_entry_2" class="form-label">Journal Entry 2</label>
+                                            <input type="text" class="form-control" id="journal_entry_2" name="journal_entry_2" placeholder="Enter journal entry for payment 2">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_voucher_2" class="form-label">Payment Voucher 2</label>
+                                            <input type="text" class="form-control" id="payment_voucher_2" name="payment_voucher_2" placeholder="Enter payment voucher for payment 2">
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="amount_2" class="form-label">Amount 2</label>
+                                            <input type="number" step="0.01" class="form-control partial-amount" id="amount_2" name="amount_2" placeholder="Enter amount for payment 2">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="fcra_status_2" class="form-label">FCRA Status 2</label>
+                                            <select class="form-select" id="fcra_status_2" name="fcra_status_2">
+                                                <option value="">Select FCRA Status</option>
+                                                <option value="MUM FCRA">MUM FCRA</option>
+                                                <option value="MUM NONFC">MUM NONFC</option>
+                                                <option value="PUN FCRA">PUN FCRA</option>
+                                                <option value="PUN NONFC">PUN NONFC</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="transaction_id_2" class="form-label">Transaction ID 2</label>
+                                            <input type="text" class="form-control" id="transaction_id_2" name="transaction_id_2" disabled placeholder="Will be enabled after approval">
+                                            <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_date_2" class="form-label">Date of Payment 2</label>
+                                            <input type="date" class="form-control" id="payment_date_2" name="payment_date_2" disabled>
+                                            <small class="text-muted">This field will be enabled after Finance Approver approval</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Total Validation -->
+                            <div class="alert alert-warning" id="amount_validation" style="display: none;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <span id="validation_message"></span>
+                            </div>
+                        </div>
+
+                        <!-- Single Payment Amount and FCRA Fields (Default) -->
+                        <div id="single_amount_section">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="amount" class="form-label">Amount</label>
+                                    <input type="number" step="0.01" class="form-control" id="amount" name="amount" value="{{ epv.total_amount }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="fcra_status" class="form-label">FCRA Status</label>
+                                    <select class="form-select" id="fcra_status" name="fcra_status" required>
+                                        <option value="">Select FCRA Status</option>
+                                        <option value="MUM FCRA">MUM FCRA</option>
+                                        <option value="MUM NONFC">MUM NONFC</option>
+                                        <option value="PUN FCRA">PUN FCRA</option>
+                                        <option value="PUN NONFC">PUN NONFC</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -417,6 +546,113 @@
         $("#vendor_name").on('input', function() {
             if ($(this).val().length < 2) {
                 $("#vendorNameHelp").text("Start typing to see suggestions from previous entries").removeClass("text-success text-info").addClass("text-muted");
+            }
+        });
+
+        // Partial payment functionality
+        $("#partial_payment").change(function() {
+            if ($(this).is(':checked')) {
+                // Show partial payment section, hide single payment sections
+                $("#partial_payment_section").show();
+                $("#single_payment_section").hide();
+                $("#single_amount_section").hide();
+
+                // Remove required attributes from single payment fields
+                $("#journal_entry, #payment_voucher, #amount, #fcra_status").removeAttr('required');
+
+                // Add required attributes to partial payment fields
+                $("#journal_entry_1, #payment_voucher_1, #amount_1, #fcra_status_1").attr('required', true);
+                $("#journal_entry_2, #payment_voucher_2, #amount_2, #fcra_status_2").attr('required', true);
+
+                // Clear single payment values
+                $("#journal_entry, #payment_voucher, #amount, #fcra_status").val('');
+            } else {
+                // Show single payment sections, hide partial payment section
+                $("#single_payment_section").show();
+                $("#single_amount_section").show();
+                $("#partial_payment_section").hide();
+
+                // Add required attributes back to single payment fields
+                $("#journal_entry, #payment_voucher, #amount, #fcra_status").attr('required', true);
+
+                // Remove required attributes from partial payment fields
+                $("#journal_entry_1, #payment_voucher_1, #amount_1, #fcra_status_1").removeAttr('required');
+                $("#journal_entry_2, #payment_voucher_2, #amount_2, #fcra_status_2").removeAttr('required');
+
+                // Clear partial payment values
+                $("#journal_entry_1, #payment_voucher_1, #amount_1, #fcra_status_1").val('');
+                $("#journal_entry_2, #payment_voucher_2, #amount_2, #fcra_status_2").val('');
+
+                // Restore original amount
+                $("#amount").val('{{ epv.total_amount }}');
+
+                // Hide validation message
+                $("#amount_validation").hide();
+            }
+        });
+
+        // Validate partial amounts
+        function validatePartialAmounts() {
+            var totalAmount = parseFloat('{{ epv.total_amount }}');
+            var amount1 = parseFloat($("#amount_1").val()) || 0;
+            var amount2 = parseFloat($("#amount_2").val()) || 0;
+            var sum = amount1 + amount2;
+
+            if (amount1 > 0 || amount2 > 0) {
+                if (Math.abs(sum - totalAmount) > 0.01) { // Allow for small floating point differences
+                    $("#amount_validation").show();
+                    $("#validation_message").html(
+                        `<strong>Amount Mismatch:</strong> Payment 1 (₹${amount1.toFixed(2)}) + Payment 2 (₹${amount2.toFixed(2)}) = ₹${sum.toFixed(2)}<br>` +
+                        `<strong>Expected Total:</strong> ₹${totalAmount.toFixed(2)}<br>` +
+                        `<strong>Difference:</strong> ₹${(sum - totalAmount).toFixed(2)}`
+                    );
+                    return false;
+                } else {
+                    $("#amount_validation").hide();
+                    return true;
+                }
+            } else {
+                $("#amount_validation").hide();
+                return true;
+            }
+        }
+
+        // Real-time validation for partial amounts
+        $(".partial-amount").on('input', function() {
+            validatePartialAmounts();
+        });
+
+        // Form submission validation
+        $("form").submit(function(e) {
+            if ($("#partial_payment").is(':checked')) {
+                // Validate amounts
+                if (!validatePartialAmounts()) {
+                    e.preventDefault();
+                    alert('Please ensure the sum of partial amounts equals the total amount.');
+                    return false;
+                }
+
+                // Check if all required partial payment fields are filled
+                var requiredFields = [
+                    {field: "#journal_entry_1", name: "Journal Entry 1"},
+                    {field: "#payment_voucher_1", name: "Payment Voucher 1"},
+                    {field: "#amount_1", name: "Amount 1"},
+                    {field: "#fcra_status_1", name: "FCRA Status 1"},
+                    {field: "#journal_entry_2", name: "Journal Entry 2"},
+                    {field: "#payment_voucher_2", name: "Payment Voucher 2"},
+                    {field: "#amount_2", name: "Amount 2"},
+                    {field: "#fcra_status_2", name: "FCRA Status 2"}
+                ];
+
+                for (var i = 0; i < requiredFields.length; i++) {
+                    var field = requiredFields[i];
+                    if (!$(field.field).val()) {
+                        e.preventDefault();
+                        alert('Please fill in ' + field.name + ' for partial payment.');
+                        $(field.field).focus();
+                        return false;
+                    }
+                }
             }
         });
     });

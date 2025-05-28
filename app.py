@@ -4244,6 +4244,32 @@ def get_employee_emails():
 
     return jsonify(employee_list)
 
+# Health check endpoint for Docker
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Docker and load balancers"""
+    try:
+        # Check database connection
+        db.session.execute('SELECT 1')
+
+        # Check if we can access basic tables
+        cost_centers_count = CostCenter.query.count()
+
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'database': 'connected',
+            'cost_centers': cost_centers_count,
+            'version': '1.0.0'
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            'status': 'unhealthy',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }), 503
+
 # Add a route to reset the database (for development only)
 @app.route('/reset-db')
 def reset_db():
@@ -5608,11 +5634,28 @@ def finance_dashboard():
 
         # Get EPVs that need payment details (approved by Finance Approver but missing transaction ID or payment date)
         # This query finds finance entries that are approved but have null transaction_id or payment_date
+        # For partial payments, check if both sets of fields are complete
         pending_payment_query = db.session.query(EPV).join(FinanceEntry).filter(
             FinanceEntry.status == 'approved',
             db.or_(
-                FinanceEntry.transaction_id == None,
-                FinanceEntry.payment_date == None
+                # For regular payments: check main transaction_id and payment_date
+                db.and_(
+                    FinanceEntry.is_partial_payment == False,
+                    db.or_(
+                        FinanceEntry.transaction_id == None,
+                        FinanceEntry.payment_date == None
+                    )
+                ),
+                # For partial payments: check if any of the partial payment fields are missing
+                db.and_(
+                    FinanceEntry.is_partial_payment == True,
+                    db.or_(
+                        FinanceEntry.transaction_id_1 == None,
+                        FinanceEntry.payment_date_1 == None,
+                        FinanceEntry.transaction_id_2 == None,
+                        FinanceEntry.payment_date_2 == None
+                    )
+                )
             ),
             FinanceEntry.finance_user_id == employee.id  # Only show entries processed by this finance user
         )
@@ -5810,6 +5853,10 @@ def finance_dashboard():
             ).order_by(FinanceEntry.entry_date.desc()).all()
             print(f"DEBUG: Found {len(pending_approval_entries)} pending approval entries across all cities")
 
+        # Debug: Print details of pending entries
+        for entry in pending_approval_entries:
+            print(f"DEBUG: Pending entry ID {entry.id}, EPV {entry.epv.epv_id}, Status: {entry.status}, Entry Date: {entry.entry_date}")
+
         # Get approved/rejected entries by this finance approver
         approved_rejected_entries = FinanceEntry.query.filter(
             FinanceEntry.approver_id == employee.id,
@@ -5936,11 +5983,28 @@ def finance_dashboard_content():
             elif tab_id == 'pending-payment':
                 # Check for EPVs that need payment details
                 # This query finds finance entries that are approved but have null transaction_id or payment_date
+                # For partial payments, check if both sets of fields are complete
                 pending_payment_query = db.session.query(EPV).join(FinanceEntry).filter(
                     FinanceEntry.status == 'approved',
                     db.or_(
-                        FinanceEntry.transaction_id == None,
-                        FinanceEntry.payment_date == None
+                        # For regular payments: check main transaction_id and payment_date
+                        db.and_(
+                            FinanceEntry.is_partial_payment == False,
+                            db.or_(
+                                FinanceEntry.transaction_id == None,
+                                FinanceEntry.payment_date == None
+                            )
+                        ),
+                        # For partial payments: check if any of the partial payment fields are missing
+                        db.and_(
+                            FinanceEntry.is_partial_payment == True,
+                            db.or_(
+                                FinanceEntry.transaction_id_1 == None,
+                                FinanceEntry.payment_date_1 == None,
+                                FinanceEntry.transaction_id_2 == None,
+                                FinanceEntry.payment_date_2 == None
+                            )
+                        )
                     ),
                     FinanceEntry.finance_user_id == employee.id  # Only show entries processed by this finance user
                 )
@@ -6194,21 +6258,89 @@ def finance_entry(epv_id):
             pass
 
     if request.method == 'POST':
-        # Create a new finance entry
-        finance_entry = FinanceEntry(
-            epv_id=epv.id,
-            finance_user_id=employee.id,
-            vendor_name=request.form.get('vendor_name'),
-            journal_entry=request.form.get('journal_entry'),
-            payment_voucher=request.form.get('payment_voucher'),
-            amount=float(request.form.get('amount')),
-            reason=request.form.get('reason'),
-            fcra_status=request.form.get('fcra_status'),
-            comments=request.form.get('comments'),
-            # Transaction ID and Payment Date will be added after Finance Approver approval
-            transaction_id=None,
-            payment_date=None
-        )
+        # Check if this is a partial payment
+        is_partial = request.form.get('partial_payment') == 'on'
+
+        if is_partial:
+            # Validate partial payment data
+            journal_entry_1 = request.form.get('journal_entry_1')
+            payment_voucher_1 = request.form.get('payment_voucher_1')
+            amount_1 = float(request.form.get('amount_1', 0))
+            fcra_status_1 = request.form.get('fcra_status_1')
+
+            journal_entry_2 = request.form.get('journal_entry_2')
+            payment_voucher_2 = request.form.get('payment_voucher_2')
+            amount_2 = float(request.form.get('amount_2', 0))
+            fcra_status_2 = request.form.get('fcra_status_2')
+
+            # Validate that amounts add up to total
+            total_partial = amount_1 + amount_2
+            if abs(total_partial - epv.total_amount) > 0.01:
+                flash(f'Partial amounts (₹{total_partial:.2f}) do not match EPV total (₹{epv.total_amount:.2f})', 'error')
+                return redirect(url_for('finance_entry', epv_id=epv_id))
+
+            # Validate that all required fields are provided
+            required_fields = [
+                (journal_entry_1, 'Journal Entry 1'),
+                (payment_voucher_1, 'Payment Voucher 1'),
+                (fcra_status_1, 'FCRA Status 1'),
+                (journal_entry_2, 'Journal Entry 2'),
+                (payment_voucher_2, 'Payment Voucher 2'),
+                (fcra_status_2, 'FCRA Status 2')
+            ]
+
+            for field_value, field_name in required_fields:
+                if not field_value:
+                    flash(f'{field_name} is required for partial payment', 'error')
+                    return redirect(url_for('finance_entry', epv_id=epv_id))
+
+            # Create finance entry with partial payment data
+            finance_entry = FinanceEntry(
+                epv_id=epv.id,
+                finance_user_id=employee.id,
+                vendor_name=request.form.get('vendor_name'),
+                journal_entry='PARTIAL',  # Indicate this is a partial payment
+                payment_voucher='PARTIAL',  # Indicate this is a partial payment
+                amount=epv.total_amount,  # Store total amount
+                reason=request.form.get('reason'),
+                fcra_status='PARTIAL',  # Indicate this is a partial payment
+                comments=request.form.get('comments'),
+                # Partial payment fields
+                is_partial_payment=True,
+                journal_entry_1=journal_entry_1,
+                payment_voucher_1=payment_voucher_1,
+                amount_1=amount_1,
+                fcra_status_1=fcra_status_1,
+                journal_entry_2=journal_entry_2,
+                payment_voucher_2=payment_voucher_2,
+                amount_2=amount_2,
+                fcra_status_2=fcra_status_2,
+                # Transaction ID and Payment Date will be added after Finance Approver approval
+                transaction_id=None,
+                payment_date=None,
+                transaction_id_1=None,
+                payment_date_1=None,
+                transaction_id_2=None,
+                payment_date_2=None
+            )
+        else:
+            # Create a regular finance entry
+            finance_entry = FinanceEntry(
+                epv_id=epv.id,
+                finance_user_id=employee.id,
+                vendor_name=request.form.get('vendor_name'),
+                journal_entry=request.form.get('journal_entry'),
+                payment_voucher=request.form.get('payment_voucher'),
+                amount=float(request.form.get('amount')),
+                reason=request.form.get('reason'),
+                fcra_status=request.form.get('fcra_status'),
+                comments=request.form.get('comments'),
+                # Regular payment fields
+                is_partial_payment=False,
+                # Transaction ID and Payment Date will be added after Finance Approver approval
+                transaction_id=None,
+                payment_date=None
+            )
 
         # Update EPV status
         epv.finance_status = 'processed'
@@ -6288,12 +6420,44 @@ def finance_approval(entry_id):
             # Reject the entry
             entry.status = 'rejected'
             entry.approver_id = employee.id
-            entry.rejection_reason = request.form.get('rejection_reason')
+            rejection_reason = request.form.get('rejection_reason')
+            entry.rejection_reason = rejection_reason
 
             # Don't change the EPV finance_status - it should remain 'processed'
             # entry.epv.finance_status = 'rejected'
 
-            flash('Finance entry has been rejected.', 'success')
+            # Send rejection notification email to the finance user who created the entry
+            try:
+                # Get the finance user who created this entry
+                finance_user = entry.finance_user
+                if finance_user and finance_user.email:
+                    # Format the approver name for the email
+                    approver_name = f"{employee.name} (Finance Approver)"
+
+                    # Import SMTP email utilities
+                    from smtp_email_utils import send_finance_entry_rejection_notification
+
+                    # Send rejection notification email
+                    success, message_id = send_finance_entry_rejection_notification(
+                        entry=entry,
+                        rejected_by=approver_name,
+                        rejection_reason=rejection_reason
+                    )
+
+                    if success:
+                        print(f"DEBUG: Successfully sent finance entry rejection notification to {finance_user.email}")
+                    else:
+                        print(f"DEBUG: Failed to send finance entry rejection notification: {message_id}")
+                else:
+                    print("DEBUG: No finance user email found for rejection notification")
+            except Exception as email_error:
+                print(f"ERROR sending finance entry rejection notification: {str(email_error)}")
+                import traceback
+                print(f"DEBUG: Email error traceback: {traceback.format_exc()}")
+                # Don't fail the whole process if email sending fails
+                pass
+
+            flash('Finance entry has been rejected. The finance user has been notified.', 'success')
 
         # Save to database
         db.session.commit()
@@ -6304,6 +6468,172 @@ def finance_approval(entry_id):
         user=session.get('user_info'),
         entry=entry,
         epv=entry.epv
+    )
+
+# Edit Finance Entry (for rejected entries)
+@app.route('/edit-finance-entry/<int:entry_id>', methods=['GET', 'POST'])
+@login_required
+def edit_finance_entry(entry_id):
+    print(f"DEBUG: edit_finance_entry route called with entry_id={entry_id}, method={request.method}")
+
+    # Check if user has Finance role
+    if session.get('employee_role') != 'Finance':
+        flash('You do not have permission to access this page.', 'error')
+        return redirect(url_for('dashboard'))
+
+    # Get the finance entry
+    entry = FinanceEntry.query.get_or_404(entry_id)
+
+    # Check if the entry is rejected
+    if entry.status != 'rejected':
+        flash('You can only edit rejected entries.', 'error')
+        return redirect(url_for('finance_dashboard'))
+
+    # Check if the entry was processed by this user
+    employee = EmployeeDetails.query.filter_by(email=session.get('email')).first()
+    if not employee or entry.finance_user_id != employee.id:
+        flash('You can only edit entries you processed.', 'error')
+        return redirect(url_for('finance_dashboard'))
+
+    # Get the EPV record
+    epv = entry.epv
+
+    if request.method == 'POST':
+        try:
+            print(f"DEBUG: ===== EDIT FINANCE ENTRY POST REQUEST =====")
+            print(f"DEBUG: Starting edit finance entry for entry ID {entry_id}")
+            print(f"DEBUG: Current entry status: {entry.status}")
+            print(f"DEBUG: Current entry vendor: {entry.vendor_name}")
+            print(f"DEBUG: Current entry is_partial_payment: {entry.is_partial_payment}")
+            print(f"DEBUG: Form data received:")
+            for key, value in request.form.items():
+                print(f"DEBUG:   {key} = {value}")
+
+            # Update the finance entry with new data
+            print(f"DEBUG: Updating vendor_name from '{entry.vendor_name}' to '{request.form.get('vendor_name')}'")
+            entry.vendor_name = request.form.get('vendor_name')
+            print(f"DEBUG: Updating reason from '{entry.reason}' to '{request.form.get('reason')}'")
+            entry.reason = request.form.get('reason')
+            print(f"DEBUG: Updating comments from '{entry.comments}' to '{request.form.get('comments')}'")
+            entry.comments = request.form.get('comments')
+
+            # Update entry date if provided
+            entry_date_str = request.form.get('entry_date')
+            if entry_date_str:
+                print(f"DEBUG: Updating entry_date to '{entry_date_str}'")
+                entry.entry_date = datetime.strptime(entry_date_str, '%Y-%m-%d')
+
+            # Check if this is a partial payment
+            is_partial_payment = request.form.get('is_partial_payment') == 'on'
+            print(f"DEBUG: is_partial_payment checkbox: {is_partial_payment}")
+            entry.is_partial_payment = is_partial_payment
+
+            if is_partial_payment:
+                print(f"DEBUG: Processing partial payment fields...")
+                # Handle partial payment fields
+                entry.journal_entry_1 = request.form.get('journal_entry_1')
+                entry.payment_voucher_1 = request.form.get('payment_voucher_1')
+                amount_1_str = request.form.get('amount_1', '0')
+                entry.amount_1 = float(amount_1_str) if amount_1_str else 0
+                entry.fcra_status_1 = request.form.get('fcra_status_1')
+                print(f"DEBUG: Payment 1 - Journal: {entry.journal_entry_1}, Voucher: {entry.payment_voucher_1}, Amount: {entry.amount_1}, FCRA: {entry.fcra_status_1}")
+
+                entry.journal_entry_2 = request.form.get('journal_entry_2')
+                entry.payment_voucher_2 = request.form.get('payment_voucher_2')
+                amount_2_str = request.form.get('amount_2', '0')
+                entry.amount_2 = float(amount_2_str) if amount_2_str else 0
+                entry.fcra_status_2 = request.form.get('fcra_status_2')
+                print(f"DEBUG: Payment 2 - Journal: {entry.journal_entry_2}, Voucher: {entry.payment_voucher_2}, Amount: {entry.amount_2}, FCRA: {entry.fcra_status_2}")
+
+                # Calculate total amount
+                entry.amount = entry.amount_1 + entry.amount_2
+                print(f"DEBUG: Total amount calculated: {entry.amount}")
+
+                # Clear single payment fields
+                entry.journal_entry = None
+                entry.payment_voucher = None
+                entry.fcra_status = None
+                print(f"DEBUG: Cleared single payment fields")
+            else:
+                print(f"DEBUG: Processing single payment fields...")
+                # Handle single payment fields
+                entry.journal_entry = request.form.get('journal_entry')
+                entry.payment_voucher = request.form.get('payment_voucher')
+                amount_str = request.form.get('amount', '0')
+                entry.amount = float(amount_str) if amount_str else 0
+                entry.fcra_status = request.form.get('fcra_status')
+                print(f"DEBUG: Single payment - Journal: {entry.journal_entry}, Voucher: {entry.payment_voucher}, Amount: {entry.amount}, FCRA: {entry.fcra_status}")
+
+                # Clear partial payment fields
+                entry.journal_entry_1 = None
+                entry.payment_voucher_1 = None
+                entry.amount_1 = None
+                entry.fcra_status_1 = None
+                entry.journal_entry_2 = None
+                entry.payment_voucher_2 = None
+                entry.amount_2 = None
+                entry.fcra_status_2 = None
+                print(f"DEBUG: Cleared partial payment fields")
+
+            # Reset status to pending for re-approval
+            print(f"DEBUG: Changing status from '{entry.status}' to 'pending'")
+            entry.status = 'pending'
+            entry.approver_id = None
+            entry.approved_on = None
+            entry.rejection_reason = None
+
+            # Clear payment details since it's being resubmitted
+            entry.transaction_id = None
+            entry.payment_date = None
+            entry.transaction_id_1 = None
+            entry.payment_date_1 = None
+            entry.transaction_id_2 = None
+            entry.payment_date_2 = None
+
+            # Update the entry date to current time
+            entry.entry_date = datetime.now()
+
+            # Save to database
+            print(f"DEBUG: About to commit database changes...")
+            print(f"DEBUG: Entry before commit - Status: {entry.status}, Vendor: {entry.vendor_name}, Is_Partial: {entry.is_partial_payment}")
+            if entry.is_partial_payment:
+                print(f"DEBUG: Partial payment data - Amount1: {entry.amount_1}, FCRA1: {entry.fcra_status_1}, Amount2: {entry.amount_2}, FCRA2: {entry.fcra_status_2}")
+
+            db.session.commit()
+            print(f"DEBUG: Database commit completed successfully!")
+
+            # Verify the change was saved by querying the database
+            updated_entry = FinanceEntry.query.get(entry_id)
+            print(f"COMMIT SUCCESS: Entry ID {entry_id} status changed to: {updated_entry.status if updated_entry else 'NOT FOUND'}")
+            if updated_entry and updated_entry.is_partial_payment:
+                print(f"VERIFICATION: Partial payment data saved - Amount1: {updated_entry.amount_1}, FCRA1: {updated_entry.fcra_status_1}, Amount2: {updated_entry.amount_2}, FCRA2: {updated_entry.fcra_status_2}")
+
+            print(f"DEBUG: About to flash success message and redirect to finance_dashboard")
+            flash('Finance entry has been updated and resubmitted for approval.', 'success')
+            print(f"DEBUG: Executing redirect to finance_dashboard...")
+            return redirect(url_for('finance_dashboard'))
+
+        except ValueError as e:
+            print(f"DEBUG: ValueError in edit finance entry: {str(e)}")
+            db.session.rollback()
+            flash('Invalid amount value. Please enter a valid number.', 'error')
+            return redirect(url_for('edit_finance_entry', entry_id=entry_id))
+        except Exception as e:
+            print(f"DEBUG: Exception in edit finance entry: {str(e)}")
+            print(f"DEBUG: Exception type: {type(e)}")
+            import traceback
+            print(f"DEBUG: Full traceback: {traceback.format_exc()}")
+            db.session.rollback()
+            flash(f'Error updating finance entry: {str(e)}', 'error')
+            return redirect(url_for('edit_finance_entry', entry_id=entry_id))
+
+    # GET request - show the edit form
+    return render_template(
+        'edit_finance_entry.html',
+        user=session.get('user_info'),
+        entry=entry,
+        epv=epv,
+        today=datetime.now()
     )
 
 # City Assignment Management
@@ -6396,37 +6726,89 @@ def update_payment_details(entry_id):
     from utils import calculate_processing_days
 
     if request.method == 'POST':
-        # Update the payment details
-        entry.transaction_id = request.form.get('transaction_id')
+        if entry.is_partial_payment:
+            # Handle partial payment updates
+            entry.transaction_id_1 = request.form.get('transaction_id_1')
+            entry.transaction_id_2 = request.form.get('transaction_id_2')
 
-        # Parse the payment date
-        payment_date_str = request.form.get('payment_date')
-        if payment_date_str:
+            # Parse and validate payment dates for both payments
+            payment_date_1_str = request.form.get('payment_date_1')
+            payment_date_2_str = request.form.get('payment_date_2')
+
             try:
-                entry.payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d')
+                if payment_date_1_str:
+                    entry.payment_date_1 = datetime.strptime(payment_date_1_str, '%Y-%m-%d')
+                if payment_date_2_str:
+                    entry.payment_date_2 = datetime.strptime(payment_date_2_str, '%Y-%m-%d')
 
-                # Calculate processing days after setting the payment date
-                processing_days = calculate_processing_days(entry.epv, entry)
+                # For partial payments, use the earliest payment date for processing calculation
+                earliest_payment_date = None
+                if entry.payment_date_1 and entry.payment_date_2:
+                    earliest_payment_date = min(entry.payment_date_1, entry.payment_date_2)
+                    # Set the main payment_date to the earliest for compatibility
+                    entry.payment_date = earliest_payment_date
+                elif entry.payment_date_1:
+                    earliest_payment_date = entry.payment_date_1
+                    entry.payment_date = earliest_payment_date
+                elif entry.payment_date_2:
+                    earliest_payment_date = entry.payment_date_2
+                    entry.payment_date = earliest_payment_date
 
-                # Get the max processing days from settings
-                max_days = 5  # Default value
-                setting = SettingsFinance.query.filter_by(setting_name='max_days_processing').first()
-                if setting:
-                    try:
-                        max_days = int(setting.setting_value)
-                    except (ValueError, TypeError):
-                        pass
+                if earliest_payment_date:
+                    # Calculate processing days for display
+                    processing_days = calculate_processing_days(entry.epv, entry)
 
-                # Show a message about processing days
-                if processing_days > 0:
-                    if processing_days > max_days:
-                        flash(f'Warning: Processing took {processing_days} days, which exceeds the SOP of {max_days} days.', 'warning')
-                    else:
-                        flash(f'Processing completed in {processing_days} business days.', 'info')
+                    # Get the max processing days from settings
+                    max_days = 5  # Default value
+                    setting = SettingsFinance.query.filter_by(setting_name='max_days_processing').first()
+                    if setting:
+                        try:
+                            max_days = int(setting.setting_value)
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Show a message about processing days
+                    if processing_days > 0:
+                        if processing_days > max_days:
+                            flash(f'Warning: Processing took {processing_days} days, which exceeds the SOP of {max_days} days.', 'warning')
+                        else:
+                            flash(f'Processing completed in {processing_days} business days.', 'info')
 
             except ValueError:
                 flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
                 return redirect(url_for('update_payment_details', entry_id=entry_id))
+        else:
+            # Handle single payment updates
+            entry.transaction_id = request.form.get('transaction_id')
+
+            # Parse the payment date
+            payment_date_str = request.form.get('payment_date')
+            if payment_date_str:
+                try:
+                    entry.payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d')
+
+                    # Calculate processing days after setting the payment date
+                    processing_days = calculate_processing_days(entry.epv, entry)
+
+                    # Get the max processing days from settings
+                    max_days = 5  # Default value
+                    setting = SettingsFinance.query.filter_by(setting_name='max_days_processing').first()
+                    if setting:
+                        try:
+                            max_days = int(setting.setting_value)
+                        except (ValueError, TypeError):
+                            pass
+
+                    # Show a message about processing days
+                    if processing_days > 0:
+                        if processing_days > max_days:
+                            flash(f'Warning: Processing took {processing_days} days, which exceeds the SOP of {max_days} days.', 'warning')
+                        else:
+                            flash(f'Processing completed in {processing_days} business days.', 'info')
+
+                except ValueError:
+                    flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
+                    return redirect(url_for('update_payment_details', entry_id=entry_id))
 
         # Save to database
         db.session.commit()
@@ -6567,11 +6949,36 @@ if __name__ == '__main__':
 
     # Only run the app when this file is executed directly, not when imported
     if __name__ == '__main__':
-        # Always use port 5000 as requested
-        # In development, you can use debug mode
-        # In production, debug should be False
+        # Docker-friendly configuration
+        # Use 0.0.0.0 to accept connections from outside the container
+        host = os.environ.get('FLASK_HOST', '0.0.0.0')
+        port = int(os.environ.get('FLASK_PORT', 5000))
         debug_mode = os.environ.get('FLASK_ENV') == 'development'
-        app.run(host='127.0.0.1', port=5000, debug=debug_mode)
+
+        # In production, use Gunicorn instead of Flask dev server
+        if os.environ.get('FLASK_ENV') == 'production':
+            # Import gunicorn programmatically for production
+            try:
+                from gunicorn.app.wsgiapp import WSGIApplication
+                import sys
+
+                # Configure gunicorn
+                sys.argv = [
+                    'gunicorn',
+                    '--config', 'gunicorn.conf.py',
+                    'app:app'
+                ]
+
+                WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
+            except ImportError:
+                # Fallback to Flask dev server if gunicorn not available
+                app.logger.warning("Gunicorn not available, using Flask dev server")
+                app.run(host=host, port=port, debug=False)
+        else:
+            # Development mode - disable auto-reload to prevent database commit interruption
+            print("🚀 Starting Flask development server with auto-reload DISABLED for testing")
+            print("📝 This prevents database commit interruption during form submissions")
+            app.run(host=host, port=port, debug=debug_mode, use_reloader=False)
 
 # Make the Flask application available as 'application' for WSGI
 application = app

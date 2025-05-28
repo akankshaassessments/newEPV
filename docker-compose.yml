@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # Flask Application
+  web:
+    build: .
+    container_name: epv-app
+    ports:
+      - "5000:5000"
+    environment:
+      # Database Configuration
+      - DB_HOST=db
+      - DB_USER=epv_user
+      - DB_PASSWORD=EPV_SecurePass123!
+      - DB_NAME=epv_database
+      - DB_PORT=3306
+      
+      # SMTP Configuration
+      - SMTP_SERVER=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      
+      # Google OAuth Configuration
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      
+      # Google Drive Configuration
+      - GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID}
+      - GOOGLE_SERVICE_ACCOUNT_FILE=/app/service-account.json
+      
+      # Application Configuration
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-this}
+      - FLASK_ENV=production
+      - PYTHONPATH=/app
+      
+    volumes:
+      # Persistent storage for uploads and logs
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+      # Mount Google service account file if you have one
+      # - ./service-account.json:/app/service-account.json:ro
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - epv-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: epv-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=RootPass123!
+      - MYSQL_DATABASE=epv_database
+      - MYSQL_USER=epv_user
+      - MYSQL_PASSWORD=EPV_SecurePass123!
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persistent database storage
+      - mysql_data:/var/lib/mysql
+      # Custom MySQL configuration
+      - ./mysql.cnf:/etc/mysql/conf.d/custom.cnf:ro
+      # Database initialization scripts
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+    networks:
+      - epv-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "epv_user", "-pEPV_SecurePass123!"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis for session storage (optional but recommended for production)
+  redis:
+    image: redis:7-alpine
+    container_name: epv-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - epv-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx reverse proxy (optional but recommended for production)
+  nginx:
+    image: nginx:alpine
+    container_name: epv-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - web
+    restart: unless-stopped
+    networks:
+      - epv-network
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  epv-network:
+    driver: bridge

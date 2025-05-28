@@ -44,6 +44,7 @@
                                         <th>Vendor Name</th>
                                         <td>{{ entry.vendor_name }}</td>
                                     </tr>
+                                    {% if not entry.is_partial_payment %}
                                     <tr>
                                         <th>Journal Entry</th>
                                         <td>{{ entry.journal_entry }}</td>
@@ -60,6 +61,7 @@
                                         <th>FCRA Status</th>
                                         <td>{{ entry.fcra_status }}</td>
                                     </tr>
+                                    {% endif %}
                                     <tr>
                                         <th>Processed By</th>
                                         <td>{{ entry.finance_user.name }} ({{ entry.finance_user.email }})</td>
@@ -76,7 +78,7 @@
                                         <th>Approved On</th>
                                         <td>{{ entry.approved_on.strftime('%d-%m-%Y %H:%M:%S') }}</td>
                                     </tr>
-                                    {% if entry.payment_date %}
+                                    {% if entry.payment_date or entry.payment_date_1 or entry.payment_date_2 %}
                                     <tr>
                                         <th>Processing Days</th>
                                         <td>
@@ -98,7 +100,119 @@
                             </div>
                         </div>
 
+                        <!-- Partial Payment Details (if applicable) -->
+                        {% if entry.is_partial_payment %}
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h5><i class="fas fa-money-bill-wave me-2"></i>Partial Payment Details</h5>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>This is a partial payment</strong> - The payment has been split into two parts with different details and FCRA statuses.
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Payment</th>
+                                                <th>Journal Entry</th>
+                                                <th>Payment Voucher</th>
+                                                <th>Amount</th>
+                                                <th>FCRA Status</th>
+                                                <th>Transaction ID</th>
+                                                <th>Payment Date</th>
+                                                <th>Percentage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <span class="badge bg-primary">Payment 1</span>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ entry.journal_entry_1 }}</strong>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ entry.payment_voucher_1 }}</strong>
+                                                </td>
+                                                <td>
+                                                    <strong>₹{{ entry.amount_1|round(2) }}</strong>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">{{ entry.fcra_status_1 }}</span>
+                                                </td>
+                                                <td>
+                                                    {% if entry.transaction_id_1 %}
+                                                        <span class="text-success">{{ entry.transaction_id_1 }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">Not provided yet</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if entry.payment_date_1 %}
+                                                        <span class="text-success">{{ entry.payment_date_1.strftime('%d-%m-%Y') }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">Not provided yet</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {{ ((entry.amount_1 / entry.amount) * 100)|round(1) }}%
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <span class="badge bg-success">Payment 2</span>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ entry.journal_entry_2 }}</strong>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ entry.payment_voucher_2 }}</strong>
+                                                </td>
+                                                <td>
+                                                    <strong>₹{{ entry.amount_2|round(2) }}</strong>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">{{ entry.fcra_status_2 }}</span>
+                                                </td>
+                                                <td>
+                                                    {% if entry.transaction_id_2 %}
+                                                        <span class="text-success">{{ entry.transaction_id_2 }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">Not provided yet</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if entry.payment_date_2 %}
+                                                        <span class="text-success">{{ entry.payment_date_2.strftime('%d-%m-%Y') }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">Not provided yet</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {{ ((entry.amount_2 / entry.amount) * 100)|round(1) }}%
+                                                </td>
+                                            </tr>
+                                            <tr class="table-warning">
+                                                <td><strong>Total</strong></td>
+                                                <td colspan="2"><span class="badge bg-warning text-dark">PARTIAL PAYMENT</span></td>
+                                                <td><strong>₹{{ (entry.amount_1 + entry.amount_2)|round(2) }}</strong></td>
+                                                <td><span class="badge bg-warning text-dark">PARTIAL</span></td>
+                                                <td colspan="2"><span class="text-muted">Combined payments</span></td>
+                                                <td><strong>100%</strong></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <form action="{{ url_for('update_payment_details', entry_id=entry.id) }}" method="POST">
+                            <h5><i class="fas fa-edit me-2"></i>Update Payment Details</h5>
+
+                            {% if not entry.is_partial_payment %}
+                            <!-- Single Payment Fields -->
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label for="transaction_id" class="form-label">Transaction ID</label>
@@ -118,6 +232,78 @@
                                     </small>
                                 </div>
                             </div>
+                            {% else %}
+                            <!-- Partial Payment Fields -->
+                            <div class="alert alert-warning">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Partial Payment:</strong> Please provide transaction ID and payment date for both payments.
+                            </div>
+
+                            <!-- Payment 1 Details -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0"><i class="fas fa-money-bill me-2"></i>Payment 1 Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <strong>Amount:</strong> ₹{{ entry.amount_1|round(2) }}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>FCRA Status:</strong> {{ entry.fcra_status_1 }}
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="transaction_id_1" class="form-label">Transaction ID 1</label>
+                                            <input type="text" class="form-control" id="transaction_id_1" name="transaction_id_1" value="{{ entry.transaction_id_1 or '' }}" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_date_1" class="form-label">Date of Payment 1</label>
+                                            <input type="date" class="form-control" id="payment_date_1" name="payment_date_1" value="{{ entry.payment_date_1.strftime('%Y-%m-%d') if entry.payment_date_1 else '' }}" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment 2 Details -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="fas fa-money-bill me-2"></i>Payment 2 Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-2">
+                                        <div class="col-md-6">
+                                            <strong>Amount:</strong> ₹{{ entry.amount_2|round(2) }}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>FCRA Status:</strong> {{ entry.fcra_status_2 }}
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="transaction_id_2" class="form-label">Transaction ID 2</label>
+                                            <input type="text" class="form-control" id="transaction_id_2" name="transaction_id_2" value="{{ entry.transaction_id_2 or '' }}" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="payment_date_2" class="form-label">Date of Payment 2</label>
+                                            <input type="date" class="form-control" id="payment_date_2" name="payment_date_2" value="{{ entry.payment_date_2.strftime('%Y-%m-%d') if entry.payment_date_2 else '' }}" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-clock me-2"></i>
+                                <strong>Processing Days Note:</strong> Processing days will be calculated from
+                                {% if epv.document_status == 'documents_uploaded' %}
+                                    resubmission date to the earliest payment date
+                                {% else %}
+                                    manager approval date to the earliest payment date
+                                {% endif %}
+                                (excluding weekends)
+                            </div>
+                            {% endif %}
 
                             <div class="d-flex justify-content-between mt-4">
                                 <a href="{{ url_for('finance_dashboard') }}" class="btn btn-secondary">

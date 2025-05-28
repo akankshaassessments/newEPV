@@ -492,12 +492,16 @@
                                             <td>
                                                 <div class="d-flex">
                                                     {% if entry.status == 'approved' %}
-                                                    <a href="{{ url_for('update_payment_details', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-1" title="Update Payment Details">
-                                                        <i class="fas fa-money-bill"></i>
+                                                    <a href="{{ url_for('update_payment_details', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-1">
+                                                        <i class="fas fa-money-bill me-1"></i>Update Payment
+                                                    </a>
+                                                    {% elif entry.status == 'rejected' %}
+                                                    <a href="{{ url_for('edit_finance_entry', entry_id=entry.id) }}" class="btn btn-sm btn-warning me-1">
+                                                        <i class="fas fa-edit me-1"></i>Edit & Resubmit
                                                     </a>
                                                     {% endif %}
-                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
-                                                        <i class="fas fa-eye"></i>
+                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-eye me-1"></i>View
                                                     </a>
                                                 </div>
                                             </td>
@@ -568,14 +572,19 @@
                                             <td>{{ entry.epv.city if entry.epv.city else (entry.epv.cost_center.city if entry.epv.cost_center else "N/A") }}</td>
                                             <td>{{ entry.finance_user.name }}</td>
                                             <td>{{ entry.entry_date.strftime('%d-%m-%Y') }}</td>
-                                            <td>₹{{ entry.amount|round(2) }}</td>
+                                            <td>
+                                                ₹{{ entry.amount|round(2) }}
+                                                {% if entry.is_partial_payment %}
+                                                <span class="badge bg-warning text-dark ms-1" title="Partial Payment">PARTIAL</span>
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 <div class="d-flex">
-                                                    <a href="{{ url_for('finance_approval', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-1" title="Review">
-                                                        <i class="fas fa-check"></i>
+                                                    <a href="{{ url_for('finance_approval', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-1">
+                                                        <i class="fas fa-check me-1"></i>Review
                                                     </a>
-                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
-                                                        <i class="fas fa-eye"></i>
+                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-eye me-1"></i>View
                                                     </a>
                                                 </div>
                                             </td>
@@ -645,7 +654,12 @@
                                             <td>{{ entry.epv.cost_center.city if entry.epv.cost_center else "N/A" }}</td>
                                             <td>{{ entry.finance_user.name }}</td>
                                             <td>{{ entry.approved_on.strftime('%d-%m-%Y') if entry.approved_on else '' }}</td>
-                                            <td>₹{{ entry.amount|round(2) }}</td>
+                                            <td>
+                                                ₹{{ entry.amount|round(2) }}
+                                                {% if entry.is_partial_payment %}
+                                                <span class="badge bg-warning text-dark ms-1" title="Partial Payment">PARTIAL</span>
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 {% if entry.status == 'approved' %}
                                                 <span class="badge bg-success">Approved</span>
@@ -655,8 +669,8 @@
                                             </td>
                                             <td>
                                                 <div class="d-flex">
-                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info" title="View">
-                                                        <i class="fas fa-eye"></i>
+                                                    <a href="{{ url_for('epv_record', epv_id=entry.epv.epv_id) }}" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-eye me-1"></i>View
                                                     </a>
                                                 </div>
                                             </td>
