@@ -261,7 +261,7 @@ def generate_expense_document(expense_data):
                 [Paragraph("<b>Employee ID:</b>", normal_style), data.get('employee_id', ''),
                  Paragraph("<b>Employee Name:</b>", normal_style), data.get('employee_name', '')],
                 [Paragraph("<b>Cost Center:</b>", normal_style), data.get('cost_center', ''),
-                 Paragraph("<b>Expense Type:</b>", normal_style), f"Payment to {data.get('expense_type', '')}"],
+                 Paragraph("<b>Expense Type:</b>", normal_style), data.get('expense_type', '')],
                 [Paragraph("<b>From Date:</b>", normal_style), from_date,
                  Paragraph("<b>To Date:</b>", normal_style), to_date],
             ]
@@ -345,6 +345,51 @@ def generate_expense_document(expense_data):
             elements.append(expense_table)
             elements.append(Spacer(1, 0.25*inch))
 
+            # Add split invoice allocation details if this is a split invoice
+            if data.get('is_split_invoice') and data.get('split_allocations'):
+                # Add split allocations subtitle
+                elements.append(Paragraph("Split Invoice Allocation Details", subtitle_style))
+                elements.append(Spacer(1, 0.15*inch))
+
+                # Create allocation table
+                allocation_data = [['#', 'Cost Center', 'Amount (₹)', 'Expense Head', 'Approver']]
+
+                for i, allocation in enumerate(data.get('split_allocations', [])):
+                    allocation_data.append([
+                        str(i+1),
+                        allocation.get('cost_center', ''),
+                        f"{allocation.get('amount', 0):.2f}",
+                        allocation.get('expense_head', ''),
+                        allocation.get('approver', '')
+                    ])
+
+                # Create allocation table with appropriate styling
+                allocation_table = Table(allocation_data,
+                                       colWidths=[0.5*inch, 1.5*inch, 1*inch, 1.5*inch, 2.5*inch],
+                                       rowHeights=[0.4*inch] + [0.3*inch] * (len(allocation_data) - 1))
+
+                allocation_table.setStyle(TableStyle([
+                    # Header row styling
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                    ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+                    # Zebra striping for data rows
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    # Apply light grey to even rows
+                    *[('BACKGROUND', (0, i), (-1, i), colors.lightgrey) for i in range(2, len(allocation_data), 2)],
+
+                    # General styling
+                    ('ALIGN', (2, 1), (2, -1), 'RIGHT'),  # Right-align amounts
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('PADDING', (0, 0), (-1, -1), 4),
+                ]))
+
+                elements.append(allocation_table)
+                elements.append(Spacer(1, 0.25*inch))
+
             # Add amount in words with styling
             amount_in_words_para = Paragraph(
                 f"<b>Amount in words:</b> <i>{data.get('amount_in_words', '')}</i>",
@@ -358,8 +403,20 @@ def generate_expense_document(expense_data):
             # Get the number of expense rows (excluding header and total)
             num_expense_rows = len(data.get('expenses', []))
 
+            # Get the number of allocation rows if this is a split invoice
+            num_allocation_rows = 0
+            allocation_table_height = 0
+            if data.get('is_split_invoice') and data.get('split_allocations'):
+                num_allocation_rows = len(data.get('split_allocations', []))
+                allocation_table_height = (
+                    0.25 +        # Subtitle
+                    0.15 +        # Spacer
+                    (num_allocation_rows + 1) * 0.3 +  # Allocation table (rows + header)
+                    0.25          # Spacer
+                )
+
             # Calculate the approximate height used so far
-            # Logo + header + info table + expense table + amount in words
+            # Logo + header + info table + expense table + allocation table (if split) + amount in words
             used_height = (
                 0.75 + 0.1 +  # Logo height + spacer
                 0.5 +         # Header table
@@ -370,6 +427,7 @@ def generate_expense_document(expense_data):
                 0.25 +        # Spacer
                 (num_expense_rows + 2) * row_height +  # Expense table (rows + header + total)
                 0.25 +        # Spacer
+                allocation_table_height +  # Split allocation table (if applicable)
                 0.5           # Amount in words
             )
 

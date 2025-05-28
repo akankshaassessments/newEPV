@@ -1,0 +1,424 @@
+{% extends "base_salesforce.html" %}
+
+{% block title %}Split Invoice Allocations - Expense Portal{% endblock %}
+
+{% block additional_styles %}
+
+        .allocation-row {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+        }
+        .allocation-header {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .remove-allocation {
+            background-color: #dc3545;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .add-allocation {
+            background-color: #28a745;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .total-display {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.875em;
+            margin-top: 5px;
+        }
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 pt-3">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2"><i class="fas fa-layer-group me-2"></i>Split Invoice Allocations</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <a href="{{ url_for('new_expense') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to New Expense
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-primary">
+                    <h5 class="mb-0 text-white"><i class="fas fa-layer-group me-2"></i>Cost Center Allocations</h5>
+                    <small class="text-light">Add cost center allocations for your split invoice</small>
+                </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data" id="splitInvoiceForm">
+
+                            <!-- Invoice summary will be populated by JavaScript from sessionStorage -->
+                            <div id="invoice-summary-container">
+                                <!-- Summary will be inserted here by JavaScript -->
+                            </div>
+
+                            <!-- Hidden fields will be populated by JavaScript -->
+                            <div id="hidden-fields-container">
+                                <!-- Hidden fields will be inserted here by JavaScript -->
+                            </div>
+
+                            <!-- Fallback message if no data found -->
+                            <div id="no-data-warning" class="alert alert-warning" style="display: none;">
+                                <h6><i class="fas fa-exclamation-triangle me-2"></i>No Invoice Data Found</h6>
+                                <p>Please start by filling the main expense form first.</p>
+                                <a href="{{ url_for('new_expense') }}" class="btn btn-primary">
+                                    <i class="fas fa-arrow-left me-2"></i>Go to New Expense Form
+                                </a>
+                            </div>
+
+
+
+
+
+                            <!-- File Upload Section -->
+<div class="mb-4">
+    <h6><i class="fas fa-paperclip me-2"></i>Receipt File</h6>
+    <div class="row">
+        <div class="col-md-12">
+            <label for="receipt_file" class="form-label">Upload Receipt/Invoice File *</label>
+            <input type="file" class="form-control" id="receipt_file" name="receipt_file"
+                   accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.webp" required>
+            <div class="form-text">
+                <i class="fas fa-info-circle me-1"></i>
+                Supported formats: PDF, JPG, PNG, GIF, BMP, TIFF, WebP. Files will be converted to PDF and merged with the expense document.
+            </div>
+        </div>
+    </div>
+</div>
+
+                            <!-- Cost Center Allocations -->
+                            <div class="allocation-header">
+                                <i class="fas fa-layer-group"></i> Cost Center Allocations
+                            </div>
+
+                            <div id="allocations-container">
+                                <!-- Allocation rows will be added here dynamically -->
+                            </div>
+
+                            <div class="mb-3">
+                                <button type="button" class="add-allocation" onclick="addAllocation()">
+                                    <i class="fas fa-plus"></i> Add Allocation
+                                </button>
+                            </div>
+
+                            <!-- Total Display -->
+                            <div class="total-display">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Total Invoice Amount: ₹<span id="total-invoice">0.00</span></strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Total Allocated: ₹<span id="total-allocated">0.00</span></strong>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Remaining: ₹<span id="remaining-amount">0.00</span></strong>
+                                    </div>
+                                </div>
+                                <div id="allocation-error" class="error-message" style="display: none;">
+                                    Total allocated amount must equal the invoice amount.
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" class="btn btn-secondary me-md-2" onclick="window.history.back()">
+                                    <i class="fas fa-arrow-left"></i> Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                    <i class="fas fa-paper-plane"></i> Create Split Invoice
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        let allocationIndex = 0;
+
+        // Load master data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMasterData(); // Load data from sessionStorage
+            addAllocation(); // Add first allocation row
+        });
+
+        function loadMasterData() {
+            // Check if we have master invoice data from sessionStorage
+            const masterDataStr = sessionStorage.getItem('masterInvoiceData');
+            if (masterDataStr) {
+                try {
+                    const masterData = JSON.parse(masterDataStr);
+                    console.log('Loaded master data:', masterData);
+
+                    // Show summary and hide form fields
+                    showMasterDataSummary(masterData);
+
+                    // Clear sessionStorage after use
+                    sessionStorage.removeItem('masterInvoiceData');
+                } catch (error) {
+                    console.error('Error parsing master data:', error);
+                    // Show warning if data parsing fails
+                    document.getElementById('no-data-warning').style.display = 'block';
+                }
+            } else {
+                // Show warning if no data found
+                document.getElementById('no-data-warning').style.display = 'block';
+            }
+        }
+
+        function showMasterDataSummary(masterData) {
+            // Create summary HTML
+            const summaryHtml = `
+                <div class="alert alert-info mb-4">
+                    <h6><i class="fas fa-info-circle me-2"></i>Invoice Summary</h6>
+                    <div class="row">
+                        <div class="col-md-3"><strong>Total Amount:</strong> ₹${masterData.total_amount || '0'}</div>
+                        <div class="col-md-3"><strong>From Date:</strong> ${masterData.from_date || 'N/A'}</div>
+                        <div class="col-md-3"><strong>To Date:</strong> ${masterData.to_date || 'N/A'}</div>
+                        <div class="col-md-3"><strong>Primary Cost Center:</strong> ${masterData.cost_center_name || 'N/A'}</div>
+                    </div>
+                    ${masterData['description[]'] ? `<div class="mt-2"><strong>Description:</strong> ${masterData['description[]']}</div>` : ''}
+                </div>
+            `;
+
+            // Insert summary into the designated container
+            document.getElementById('invoice-summary-container').innerHTML = summaryHtml;
+
+            // Add hidden fields
+            const hiddenFieldsHtml = `
+                <input type="hidden" name="master_invoice_amount" value="${masterData.total_amount || ''}">
+                <input type="hidden" name="master_invoice_date" value="${masterData['invoice_date[]'] || masterData.from_date || ''}">
+                <input type="hidden" name="from_date" value="${masterData.from_date || ''}">
+                <input type="hidden" name="to_date" value="${masterData.to_date || ''}">
+                <input type="hidden" name="master_invoice_description" value="${masterData['description[]'] || ''}">
+                <input type="hidden" name="master_cost_center" value="${masterData.cost_center || ''}">
+                <input type="hidden" id="master_invoice_amount" value="${masterData.total_amount || ''}">
+            `;
+
+            // Insert hidden fields into the designated container
+            document.getElementById('hidden-fields-container').innerHTML = hiddenFieldsHtml;
+        }
+
+        // Initialize cost center autocomplete for a specific allocation row
+        function initCostCenterAutocomplete(allocationIndex) {
+            const nameInput = $(`#cost_center_name_${allocationIndex}`);
+            const idInput = $(`#cost_center_id_${allocationIndex}`);
+            const helpText = $(`#cost_center_help_${allocationIndex}`);
+
+            nameInput.autocomplete({
+                source: "/api/cost-centers",
+                minLength: 2,
+                select: function(event, ui) {
+                    // Fill in cost center ID
+                    idInput.val(ui.item.id);
+                    helpText.text("Cost center selected").removeClass("text-danger").addClass("text-success");
+                    return true;
+                },
+                response: function(event, ui) {
+                    // Show a message if no results found
+                    if (ui.content.length === 0) {
+                        helpText.text("No matching cost centers found").addClass("text-danger").removeClass("text-success");
+                    } else {
+                        helpText.text("Please select a cost center from the list").removeClass("text-danger").removeClass("text-success");
+                    }
+                },
+                change: function(event, ui) {
+                    // If nothing was selected from dropdown
+                    if (!ui.item) {
+                        idInput.val("");
+                        helpText.text("Please select a valid cost center from the list").addClass("text-danger").removeClass("text-success");
+                    }
+                }
+            });
+
+            // Clear cost center ID when name is cleared
+            nameInput.on("input", function() {
+                if ($(this).val() === "") {
+                    idInput.val("");
+                    helpText.text("Start typing to search for cost centers").removeClass("text-danger").removeClass("text-success");
+                } else {
+                    // If user modifies the text after selecting an item
+                    helpText.text("Please select a valid cost center from the list").addClass("text-danger").removeClass("text-success");
+                }
+            });
+        }
+
+        // No longer need to load employees since approver email is now text input
+
+        function addAllocation() {
+            const container = document.getElementById('allocations-container');
+
+            const allocationHtml = `
+                <div class="allocation-row" id="allocation-${allocationIndex}">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Allocation ${allocationIndex + 1}</h6>
+                        <button type="button" class="remove-allocation" onclick="removeAllocation(${allocationIndex})">
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Cost Center *</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-building"></i></span>
+                                <input type="text" class="form-control cost-center-autocomplete"
+                                       id="cost_center_name_${allocationIndex}"
+                                       name="allocations[${allocationIndex}][cost_center_name]"
+                                       placeholder="Type to search..." required>
+                                <input type="hidden" name="allocations[${allocationIndex}][cost_center_id]"
+                                       id="cost_center_id_${allocationIndex}">
+                            </div>
+                            <div class="form-text cost-center-help" id="cost_center_help_${allocationIndex}">Start typing to search for cost centers</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Amount *</label>
+                            <input type="number" class="form-control allocation-amount"
+                                   name="allocations[${allocationIndex}][amount]"
+                                   step="0.01" min="0" onchange="updateTotals()" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Approver Email *</label>
+                            <input type="email" class="form-control"
+                                   name="allocations[${allocationIndex}][approver_email]"
+                                   placeholder="Enter approver email address" required>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="allocations[${allocationIndex}][description]"
+                                      rows="2" placeholder="Enter allocation description"></textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('beforeend', allocationHtml);
+
+            // Initialize autocomplete for the newly added row
+            initCostCenterAutocomplete(allocationIndex);
+
+            allocationIndex++;
+            updateTotals();
+        }
+
+        function removeAllocation(index) {
+            const allocation = document.getElementById(`allocation-${index}`);
+            if (allocation) {
+                allocation.remove();
+                updateTotals();
+            }
+        }
+
+        // Cost center name is now handled by autocomplete, no need for separate function
+
+        function updateTotals() {
+            // Get invoice amount from either visible input or hidden field
+            const invoiceAmountElement = document.getElementById('master_invoice_amount') ||
+                                       document.querySelector('input[name="master_invoice_amount"]');
+
+            // Check if element exists before trying to access its value
+            if (!invoiceAmountElement) {
+                console.log('Invoice amount element not found, skipping total update');
+                return;
+            }
+
+            const invoiceAmount = parseFloat(invoiceAmountElement.value) || 0;
+            const allocationAmounts = document.querySelectorAll('.allocation-amount');
+
+            let totalAllocated = 0;
+            allocationAmounts.forEach(input => {
+                totalAllocated += parseFloat(input.value) || 0;
+            });
+
+            const remaining = invoiceAmount - totalAllocated;
+
+            // Update display elements if they exist
+            const totalInvoiceElement = document.getElementById('total-invoice');
+            const totalAllocatedElement = document.getElementById('total-allocated');
+            const remainingAmountElement = document.getElementById('remaining-amount');
+
+            if (totalInvoiceElement) totalInvoiceElement.textContent = invoiceAmount.toFixed(2);
+            if (totalAllocatedElement) totalAllocatedElement.textContent = totalAllocated.toFixed(2);
+            if (remainingAmountElement) remainingAmountElement.textContent = remaining.toFixed(2);
+
+            const errorDiv = document.getElementById('allocation-error');
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (Math.abs(remaining) > 0.01) {
+                if (errorDiv) errorDiv.style.display = 'block';
+                if (submitBtn) submitBtn.disabled = true;
+            } else {
+                if (errorDiv) errorDiv.style.display = 'none';
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        }
+
+        // Update totals when invoice amount changes (only if visible input exists)
+        const invoiceAmountInput = document.getElementById('master_invoice_amount');
+        if (invoiceAmountInput && invoiceAmountInput.type !== 'hidden') {
+            invoiceAmountInput.addEventListener('input', updateTotals);
+        }
+
+        // Form validation
+        document.getElementById('splitInvoiceForm').addEventListener('submit', function(e) {
+            // Get invoice amount from either visible input or hidden field
+            const invoiceAmountElement = document.getElementById('master_invoice_amount') ||
+                                       document.querySelector('input[name="master_invoice_amount"]');
+
+            if (!invoiceAmountElement) {
+                e.preventDefault();
+                alert('Invoice amount not found. Please go back to the expense form and try again.');
+                return false;
+            }
+
+            const invoiceAmount = parseFloat(invoiceAmountElement.value) || 0;
+            const allocationAmounts = document.querySelectorAll('.allocation-amount');
+
+            let totalAllocated = 0;
+            allocationAmounts.forEach(input => {
+                totalAllocated += parseFloat(input.value) || 0;
+            });
+
+            if (Math.abs(invoiceAmount - totalAllocated) > 0.01) {
+                e.preventDefault();
+                alert('Total allocated amount must equal the invoice amount.');
+                return false;
+            }
+
+            if (allocationAmounts.length === 0) {
+                e.preventDefault();
+                alert('Please add at least one allocation.');
+                return false;
+            }
+        });
+    </script>
+{% endblock %}

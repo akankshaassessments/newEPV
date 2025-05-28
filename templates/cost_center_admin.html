@@ -143,24 +143,76 @@
                     <tbody>
                         {% for record in records %}
                         <tr>
-                            <td>{{ record.epv_id }}</td>
-                            <td>{{ record.employee_name }}</td>
-                            <td>{{ record.cost_center_name }}</td>
-                            <td>{{ record.submission_date.strftime('%d-%m-%Y') }}</td>
-                            <td>Rs. {{ "%.2f"|format(record.total_amount) }}</td>
                             <td>
-                                {% if record.status == 'submitted' %}
-                                <span class="badge bg-secondary">Submitted</span>
-                                {% elif record.status == 'pending_approval' %}
-                                <span class="badge bg-warning">Pending Approval</span>
-                                {% elif record.status == 'partially_approved' %}
-                                <span class="badge bg-info">Partially Approved</span>
-                                {% elif record.status == 'approved' %}
-                                <span class="badge bg-success">Approved</span>
-                                {% elif record.status == 'rejected' %}
-                                <span class="badge bg-danger">Rejected</span>
+                                {{ record.epv_id }}
+                                {% if record.invoice_type == 'split' %}
+                                <br><small class="text-muted"><i class="fas fa-share-alt"></i> Split Invoice</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.employee_name }}</td>
+                            <td>
+                                {{ record.cost_center_name }}
+                                {% if record.invoice_type == 'split' %}
+                                <br><small class="text-muted">Primary Cost Center</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.submission_date.strftime('%d-%m-%Y') }}</td>
+                            <td>
+                                Rs. {{ "%.2f"|format(record.total_amount) }}
+                                {% if record.invoice_type == 'split' %}
+                                <br><small class="text-muted">Total Amount</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if record.invoice_type == 'split' %}
+                                    <!-- For split invoices, show the user's allocation status -->
+                                    {% set user_allocation = None %}
+                                    {% for allocation in record.allocations if allocation.approver_email == session.email %}
+                                        {% set user_allocation = allocation %}
+                                    {% endfor %}
+
+                                    {% if user_allocation %}
+                                        {% if user_allocation.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending Your Approval</span>
+                                        {% elif user_allocation.status == 'approved' %}
+                                        <span class="badge bg-success">Approved by You</span>
+                                        {% elif user_allocation.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected by You</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ user_allocation.status|title }}</span>
+                                        {% endif %}
+                                        <br><small class="text-muted">Your allocation: Rs. {{ "%.2f"|format(user_allocation.allocated_amount) }}</small>
+                                    {% else %}
+                                        <!-- Fallback to overall status if no user allocation found -->
+                                        {% if record.status == 'submitted' %}
+                                        <span class="badge bg-secondary">Submitted</span>
+                                        {% elif record.status == 'pending_approval' %}
+                                        <span class="badge bg-warning">Pending Approval</span>
+                                        {% elif record.status == 'partially_approved' %}
+                                        <span class="badge bg-info">Partially Approved</span>
+                                        {% elif record.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                        {% elif record.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ record.status }}</span>
+                                        {% endif %}
+                                    {% endif %}
                                 {% else %}
-                                <span class="badge bg-secondary">{{ record.status }}</span>
+                                    <!-- For standard invoices, show overall status -->
+                                    {% if record.status == 'submitted' %}
+                                    <span class="badge bg-secondary">Submitted</span>
+                                    {% elif record.status == 'pending_approval' %}
+                                    <span class="badge bg-warning">Pending Approval</span>
+                                    {% elif record.status == 'partially_approved' %}
+                                    <span class="badge bg-info">Partially Approved</span>
+                                    {% elif record.status == 'approved' %}
+                                    <span class="badge bg-success">Approved</span>
+                                    {% elif record.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ record.status }}</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                             <td>

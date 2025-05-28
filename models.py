@@ -120,10 +120,15 @@ class EPV(db.Model):
     amount_in_words = db.Column(db.String(255))
 
     # Split invoice support
-    invoice_type = db.Column(db.String(20), default='standard')  # standard, master, sub
+    invoice_type = db.Column(db.String(20), default='standard')  # standard, master, sub, split
     master_invoice_id = db.Column(db.Integer, db.ForeignKey('epv.id'), nullable=True)  # For sub-invoices, points to master
     master_invoice = db.relationship('EPV', foreign_keys=[master_invoice_id], backref=db.backref('sub_invoices', lazy='joined'), remote_side='EPV.id')
     split_status = db.Column(db.String(20), nullable=True)  # splitting, pending_approval, partially_approved, fully_approved, rejected, processing, completed
+
+    # New split invoice fields for single EPV with multiple approvers
+    approved_amount = db.Column(db.Float, default=0.0)  # Total amount approved from allocations
+    rejected_amount = db.Column(db.Float, default=0.0)  # Total amount rejected from allocations
+    pending_amount = db.Column(db.Float, default=0.0)   # Total amount still pending approval
 
     # Approval workflow
     status = db.Column(db.String(20), default='submitted')  # submitted, pending_approval, approved, rejected, partially_approved, finance_pending, finance_processed, finance_approved, finance_rejected
@@ -195,6 +200,10 @@ class EPVApproval(db.Model):
     epv_id = db.Column(db.Integer, db.ForeignKey('epv.id'), nullable=False)
     epv = db.relationship('EPV', backref=db.backref('approvals', lazy=True))
 
+    # Link to allocation for split invoices (nullable for backward compatibility)
+    allocation_id = db.Column(db.Integer, db.ForeignKey('epv_allocation.id'), nullable=True)
+    allocation = db.relationship('EPVAllocation', backref=db.backref('approval', uselist=False))
+
     # Approver details
     approver_email = db.Column(db.String(100), nullable=False)
     approver_name = db.Column(db.String(100))
@@ -209,6 +218,46 @@ class EPVApproval(db.Model):
 
     def __repr__(self):
         return f"<EPVApproval {self.id} for EPV {self.epv_id} by {self.approver_email}>"
+
+class EPVAllocation(db.Model):
+    """
+    Model to store cost center allocations for split invoices
+    Each allocation represents a portion of the total invoice amount allocated to a specific cost center with a designated approver
+    """
+    __tablename__ = 'epv_allocation'
+
+    id = db.Column(db.Integer, primary_key=True)
+    epv_id = db.Column(db.Integer, db.ForeignKey('epv.id'), nullable=False)
+    epv = db.relationship('EPV', backref=db.backref('allocations', lazy=True))
+
+    # Cost center details
+    cost_center_id = db.Column(db.Integer, db.ForeignKey('costcenter.id'), nullable=False)
+    cost_center_name = db.Column(db.String(100), nullable=False)
+    cost_center = db.relationship('CostCenter', foreign_keys=[cost_center_id])
+
+    # Allocation details
+    allocated_amount = db.Column(db.Float, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    expense_head = db.Column(db.String(100), nullable=True)  # Expense head for this allocation
+
+    # Approver details
+    approver_email = db.Column(db.String(100), nullable=False)
+    approver_name = db.Column(db.String(100), nullable=True)
+
+    # Approval status
+    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    action_date = db.Column(db.DateTime, nullable=True)  # When the approver took action
+    rejection_reason = db.Column(db.Text, nullable=True)  # Reason for rejection if rejected
+
+    # Token for secure approval/rejection links
+    token = db.Column(db.String(100), unique=True, nullable=False)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f"<EPVAllocation {self.id} for EPV {self.epv_id} - {self.cost_center_name} - ₹{self.allocated_amount}>"
 
 class EPVItem(db.Model):
     """

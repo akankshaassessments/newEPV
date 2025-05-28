@@ -258,7 +258,7 @@
                                         <span class="input-group-text"><i class="fas fa-file-invoice"></i></span>
                                         <select class="form-select" id="invoiceType" name="invoice_type" required>
                                             <option value="standard">Standard Invoice</option>
-                                            <option value="master">Split Invoice (Master)</option>
+                                            <option value="split">Split Invoice</option>
                                         </select>
                                     </div>
                                     <div id="invoiceTypeHelp" class="form-text">Select 'Split Invoice' if this expense needs to be split across multiple cost centers</div>
@@ -698,6 +698,9 @@
         // Add expense button
         let expenseCount = 1;
         $("#addExpenseBtn").click(function() {
+            // Check if we're in split invoice mode
+            const invoiceType = $('#invoiceType').val();
+
             // Find the next available expense number
             let existingIds = [];
             $(".expense-item").each(function() {
@@ -725,9 +728,6 @@
 
             // Update the header attributes
             newExpense.find(".expense-header").attr("data-bs-target", `#expense-${expenseCount}-content`);
-
-            // Update header
-            newExpense.find("h6").text(`Expense #${expenseCount}`);
 
             // Update content div
             newExpense.find("#expense-1-content").attr("id", `expense-${expenseCount}-content`);
@@ -769,11 +769,26 @@
             // Only show split invoice option for expenses after the first one
             newExpense.find(".split-invoice-row").show();
 
-            // Collapse all existing expense items
-            $(".expense-item .collapse").collapse('hide');
+            // Collapse all existing expense items except the first one
+            $(".expense-item:not(#expense-1) .collapse").collapse('hide');
 
             // Insert the new expense item
             $("#expenseItems").append(newExpense);
+
+            // If we're in split invoice mode, convert this new item to allocation format
+            if (invoiceType === 'split') {
+                // Calculate the correct allocation number (expense items beyond #1 become allocations starting from #1)
+                const allocationNumber = expenseCount - 1;
+
+                // Update the header to show allocation
+                newExpense.find("h6").text(`Allocation #${allocationNumber}`);
+
+                // Convert to allocation format
+                convertExpenseToAllocation(newExpense);
+            } else {
+                // Update header for standard expense
+                newExpense.find("h6").text(`Expense #${expenseCount}`);
+            }
 
             // Datepicker will be initialized separately by our initializeNewExpenseDatepicker function
 
@@ -802,8 +817,8 @@
                 }
             });
 
-            // Add event listener for the new amount input
-            $(`#amount-${expenseCount}`).on("input", updateTotalAmount);
+            // Add event listener for the new amount input (works for both expense and allocation amounts)
+            $(`#amount-${expenseCount}, #allocationAmount-${expenseCount}`).on("input", updateTotalAmount);
 
             // Show the new expense item
             $(`#expense-${expenseCount}-content`).collapse('show');
@@ -834,11 +849,13 @@
         });
 
         // Update total amount when amount inputs change
-        $(document).on("input", ".amount-input", updateTotalAmount);
+        $(document).on("input", ".amount-input, input[name='allocation_amount[]']", updateTotalAmount);
 
         function updateTotalAmount() {
             let total = 0;
-            $(".amount-input").each(function() {
+
+            // Include both standard expense amounts and allocation amounts
+            $(".amount-input, input[name='allocation_amount[]']").each(function() {
                 const amount = parseFloat($(this).val()) || 0;
                 total += amount;
             });
@@ -1049,7 +1066,10 @@
         }
 
         // Submit button
-        $("#submitBtn").click(function() {
+        $("#submitBtn").click(function(e) {
+            // Prevent default form submission
+            e.preventDefault();
+
             // Validate form
             if (!validateForm()) {
                 return;
@@ -1057,14 +1077,126 @@
 
             // Check if this is a split invoice
             const invoiceType = $('#invoiceType').val();
-            if (invoiceType === 'master') {
-                // For split invoices, handle the form submission in the form's submit handler
-                // which will redirect to the allocation page
-                $('#expenseForm').submit();
+            console.log('DEBUG: Invoice type selected:', invoiceType);
+
+            if (invoiceType === 'split') {
+                console.log('DEBUG: Processing split invoice - modal should NOT appear');
+
+                // For split invoices, validate that we have allocations
+                const allocationFields = $('input[name="allocation_cost_center[]"]');
+                if (allocationFields.length === 0) {
+                    Swal.fire({
+                        title: 'Missing Allocations',
+                        text: 'Please add at least one allocation for split invoices.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+
+                // Validate that all allocation fields are filled
+                let hasEmptyFields = false;
+                let errorMessage = '';
+
+                allocationFields.each(function(index) {
+                    const costCenter = $(this).val();
+                    const amount = $('input[name="allocation_amount[]"]').eq(index).val();
+                    const approverEmail = $('input[name="allocation_approver[]"]').eq(index).val();
+
+                    if (!costCenter || !amount || !approverEmail) {
+                        hasEmptyFields = true;
+                        errorMessage = 'Please fill in all allocation fields (cost center, amount, and approver email).';
+                        return false; // Break out of each loop
+                    }
+
+                    // Validate amount is a number
+                    if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+                        hasEmptyFields = true;
+                        errorMessage = 'Please enter valid amounts for all allocations.';
+                        return false;
+                    }
+
+                    // Validate email format
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(approverEmail)) {
+                        hasEmptyFields = true;
+                        errorMessage = 'Please enter valid email addresses for all approvers.';
+                        return false;
+                    }
+                });
+
+                if (hasEmptyFields) {
+                    Swal.fire({
+                        title: 'Incomplete Allocations',
+                        text: errorMessage,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+
+                // For split invoices, submit directly without showing the approval modal
+                // Show loading screen
+                if (typeof LoadingScreen !== 'undefined') {
+                    LoadingScreen.show(5); // Show loading screen for 5 seconds
+                }
+
+                // Submit the form using AJAX
+                $.ajax({
+                    url: $("#expenseForm").attr("action"),
+                    type: "POST",
+                    data: new FormData($("#expenseForm")[0]),
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        // Hide loading screen
+                        if (typeof LoadingScreen !== 'undefined') {
+                            LoadingScreen.hide();
+                        }
+
+                        if (response.success) {
+                            // Show success message
+                            Swal.fire({
+                                title: 'Success!',
+                                text: response.message,
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            }).then((result) => {
+                                // Redirect to EPV records page
+                                window.location.href = '/epv-records';
+                            });
+                        } else {
+                            // Show error message
+                            Swal.fire({
+                                title: 'Error!',
+                                text: response.message || 'An error occurred while submitting the split invoice.',
+                                icon: 'error',
+                                confirmButtonText: 'OK'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Hide loading screen
+                        if (typeof LoadingScreen !== 'undefined') {
+                            LoadingScreen.hide();
+                        }
+
+                        // Show error message
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred while submitting the split invoice.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                });
                 return;
+
+
             }
 
             // For regular invoices, show the approval modal
+            console.log('DEBUG: Processing regular invoice - modal SHOULD appear');
             const managerEmail = $("#employeeManager").val();
             $("#managerEmail").val(managerEmail);
 
@@ -1448,58 +1580,308 @@
                 }
             });
 
-            // Check if this is a split invoice
-            const invoiceType = $('#invoiceType').val();
-            if (invoiceType === 'master') {
-                // Prevent the default form submission
-                e.preventDefault();
-
-                // Save the form data to session storage
-                const formData = new FormData(document.getElementById('expenseForm'));
-                const formDataObj = {};
-
-                // Handle file separately
-                const fileInput = document.getElementById('receiptFile');
-                if (fileInput && fileInput.files.length > 0) {
-                    // Store file name for reference
-                    formDataObj['file_name'] = fileInput.files[0].name;
-                    formDataObj['file_size'] = fileInput.files[0].size;
-                    formDataObj['file_type'] = fileInput.files[0].type;
-
-                    // We can't store the actual file in session storage,
-                    // but we'll handle this in the backend
-                }
-
-                // Store other form fields
-                for (const [key, value] of formData.entries()) {
-                    // Skip the file input as we handled it separately
-                    if (key !== 'receipt_file') {
-                        formDataObj[key] = value;
-                    }
-                }
-                sessionStorage.setItem('masterInvoiceData', JSON.stringify(formDataObj));
-
-                // Redirect to the split allocation page
-                window.location.href = '{{ url_for("split_invoice_allocation") }}';
-                return false;
-            }
+            // Split invoice functionality is now handled by the dedicated Split Invoice button
 
             return true; // Allow form submission to proceed
         });
 
-        // Handle invoice type change
+        // Invoice type change handler
         $('#invoiceType').change(function() {
             const invoiceType = $(this).val();
-            if (invoiceType === 'master') {
-                // Hide cost center field for master invoices
-                $('#costCenterContainer').hide();
-                $('#costCenterName').prop('required', false);
-                $('#costCenter').prop('required', false);
+            if (invoiceType === 'split') {
+                // For split invoices, change the form layout
+                $('#costCenterContainer label').text('Primary Cost Center');
+                $('#costCenterHelp').text('This will be the primary cost center for the master invoice record');
+
+                // Disable and make non-mandatory the main expense head for split invoices
+                $('#expenseHead-1').prop('disabled', true).prop('required', false);
+                $('#expenseHead-1').val(''); // Clear the value
+                $('#expenseHead-1').closest('.col-md-6').find('label').removeClass('required-field');
+
+                // Update the expense items section for split invoice
+                updateExpenseItemsForSplitInvoice();
+
+                // Update the add expense button text
+                $('#addExpenseBtn').html('<i class="fas fa-plus"></i> Add Allocation');
+
+                // Ensure we have at least one allocation (expense item 2)
+                if ($('.expense-item').length === 1) {
+                    // Add a second expense item that will be converted to allocation
+                    $('#addExpenseBtn').click();
+                }
             } else {
-                // Show cost center field for standard invoices
-                $('#costCenterContainer').show();
-                $('#costCenterName').prop('required', true);
-                $('#costCenter').prop('required', true);
+                // For standard invoices, use normal layout
+                $('#costCenterContainer label').text('Cost Center');
+                $('#costCenterHelp').text('Start typing to search for cost centers');
+
+                // Enable and make mandatory the main expense head for standard invoices
+                $('#expenseHead-1').prop('disabled', false).prop('required', true);
+                $('#expenseHead-1').closest('.col-md-6').find('label').addClass('required-field');
+
+                // Reset to normal expense items
+                updateExpenseItemsForStandardInvoice();
+
+                // Reset the add expense button text
+                $('#addExpenseBtn').html('<i class="fas fa-plus"></i> Add Expense');
+            }
+
+            // Show cost center field for both types
+            $('#costCenterContainer').show();
+            $('#costCenterName').prop('required', true);
+            $('#costCenter').prop('required', true);
+        });
+
+        // Function to update expense items for split invoice
+        function updateExpenseItemsForSplitInvoice() {
+            // Keep the first expense item as is (this is the main invoice with file upload)
+            // But change subsequent items to allocation fields
+
+            // Update the header for expense items section
+            $('.expense-items-header h5').html('<i class="fas fa-list-alt me-2"></i> Invoice Details & Allocations');
+
+            // Ensure the first expense item is visible
+            $('#expense-1-content').collapse('show');
+
+            // Update existing expense items beyond the first one to allocation format
+            $('.expense-item').each(function(index) {
+                if (index > 0) { // Skip the first expense item
+                    convertExpenseToAllocation($(this));
+                }
+            });
+        }
+
+        // Function to update expense items for standard invoice
+        function updateExpenseItemsForStandardInvoice() {
+            // Reset the header
+            $('.expense-items-header h5').html('<i class="fas fa-list-alt me-2"></i> Expense Items');
+
+            // Convert any allocation items back to expense format
+            $('.expense-item').each(function() {
+                convertAllocationToExpense($(this));
+            });
+        }
+
+        // Function to convert expense item to allocation format
+        function convertExpenseToAllocation($item) {
+            const expenseId = $item.attr('id').split('-')[1];
+
+            // Calculate the correct allocation number (expense items beyond #1 become allocations starting from #1)
+            const allocationNumber = expenseId - 1;
+
+            // Update the header
+            $item.find('h6').text(`Allocation #${allocationNumber}`);
+
+            // Replace expense fields with allocation fields including expense head
+            const allocationHtml = `
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label for="allocationCostCenter-${expenseId}" class="form-label required-field">Cost Center</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-building"></i></span>
+                            <input type="text" class="form-control cost-center-autocomplete" id="allocationCostCenter-${expenseId}" name="allocation_cost_center[]" placeholder="Type to search..." required>
+                            <input type="hidden" id="allocationCostCenterId-${expenseId}" name="allocation_cost_center_id[]" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="allocationExpenseHead-${expenseId}" class="form-label required-field">Expense Head</label>
+                        <select class="form-select" id="allocationExpenseHead-${expenseId}" name="allocation_expense_head[]" required>
+                            <option value="">Select Expense Head</option>
+                            {% for head in expense_heads %}
+                            <option value="{{ head.head_name }}">{{ head.head_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label for="allocationAmount-${expenseId}" class="form-label required-field">Amount (₹)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" class="form-control amount-input" id="allocationAmount-${expenseId}" name="allocation_amount[]" placeholder="Enter amount" min="0" step="any" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="allocationApprover-${expenseId}" class="form-label required-field">Approver Email</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                            <input type="email" class="form-control approver-email-input" id="allocationApprover-${expenseId}" name="allocation_approver[]" placeholder="Start typing name or email" autocomplete="off" required>
+                        </div>
+                        <small class="form-text text-muted">Start typing to see employee suggestions</small>
+                    </div>
+                </div>
+            `;
+
+            // Replace the content
+            $item.find('.collapse').html(allocationHtml);
+
+            // Initialize cost center autocomplete for this allocation
+            initializeCostCenterAutocomplete(`#allocationCostCenter-${expenseId}`, `#allocationCostCenterId-${expenseId}`);
+
+            // Initialize email autocomplete for this allocation
+            initializeEmailAutocomplete(`#allocationApprover-${expenseId}`);
+        }
+
+        // Function to convert allocation item back to expense format
+        function convertAllocationToExpense($item) {
+            const expenseId = $item.attr('id').split('-')[1];
+
+            // Update the header
+            $item.find('h6').text(`Expense #${expenseId}`);
+
+            // Replace with standard expense fields
+            const expenseHtml = `
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label for="invoiceDate-${expenseId}" class="form-label required-field">Invoice Date</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                            <input type="date" class="form-control" id="invoiceDate-${expenseId}" name="invoice_date[]" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="expenseHead-${expenseId}" class="form-label required-field">Expense Head</label>
+                        <select class="form-select" id="expenseHead-${expenseId}" name="expense_head[]" required>
+                            <option value="">Select Expense Head</option>
+                            {% for head in expense_heads %}
+                            <option value="{{ head.head_name }}">{{ head.head_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label for="amount-${expenseId}" class="form-label required-field">Amount (₹)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" class="form-control amount-input" id="amount-${expenseId}" name="amount[]" placeholder="Enter amount" min="0" step="any" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label for="description-${expenseId}" class="form-label required-field">Description</label>
+                        <textarea class="form-control" id="description-${expenseId}" name="description[]" rows="2" placeholder="Enter description" required></textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <label for="receipt-${expenseId}" class="form-label required-field">Upload Receipt</label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="receipt-${expenseId}" name="receipt[]" accept=".pdf,.jpg,.jpeg,.png" required>
+                            <label class="input-group-text" for="receipt-${expenseId}"><i class="fas fa-upload"></i></label>
+                        </div>
+                        <div class="form-text">Accepted formats: PDF, JPG, JPEG, PNG (Max size: 5MB)</div>
+                    </div>
+                </div>
+                <div class="row mt-3 split-invoice-row" id="splitInvoiceRow-${expenseId}" style="display: none;">
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input split-invoice-check" type="checkbox" id="splitInvoice-${expenseId}" data-expense-id="${expenseId}">
+                            <input type="hidden" name="split_invoice[]" id="splitInvoiceHidden-${expenseId}" value="0">
+                            <label class="form-check-label" for="splitInvoice-${expenseId}">
+                                This is a split from the same invoice as above
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Replace the content
+            $item.find('.collapse').html(expenseHtml);
+        }
+
+        // Function to initialize cost center autocomplete
+        function initializeCostCenterAutocomplete(inputSelector, hiddenSelector) {
+            $(inputSelector).autocomplete({
+                source: "/api/cost-centers",
+                minLength: 2,
+                select: function(event, ui) {
+                    $(hiddenSelector).val(ui.item.id);
+                    return true;
+                },
+                change: function(event, ui) {
+                    if (!ui.item) {
+                        $(hiddenSelector).val("");
+                    }
+                }
+            });
+        }
+
+        // Function to initialize email autocomplete for approver selection
+        function initializeEmailAutocomplete(inputSelector) {
+            $(inputSelector).autocomplete({
+                source: "/api/employee-emails",
+                minLength: 2,
+                select: function(event, ui) {
+                    // Fill in the email value
+                    $(inputSelector).val(ui.item.email);
+
+                    // Update help text to show selection
+                    const helpText = $(inputSelector).siblings('.form-text');
+                    if (helpText.length) {
+                        helpText.text(`Selected: ${ui.item.name} (${ui.item.email})`).removeClass('text-muted').addClass('text-success');
+                    }
+
+                    return false; // Prevent default behavior
+                },
+                response: function(event, ui) {
+                    const helpText = $(inputSelector).siblings('.form-text');
+                    if (helpText.length) {
+                        if (ui.content.length === 0) {
+                            helpText.text("No matching employees found - you can enter email manually").removeClass('text-success').addClass('text-muted');
+                        } else {
+                            helpText.text("Please select an employee from the list").removeClass('text-muted').addClass('text-info');
+                        }
+                    }
+                },
+                change: function(event, ui) {
+                    // Reset help text when user types something not from the list
+                    if (!ui.item) {
+                        const helpText = $(inputSelector).siblings('.form-text');
+                        if (helpText.length) {
+                            helpText.text("Start typing to see employee suggestions").removeClass('text-success text-info').addClass('text-muted');
+                        }
+                    }
+                },
+                focus: function(event, ui) {
+                    // Prevent the input from being updated when hovering over items
+                    return false;
+                }
+            });
+
+            // Clear help text styling when user starts typing
+            $(inputSelector).on('input', function() {
+                if ($(this).val().length < 2) {
+                    const helpText = $(this).siblings('.form-text');
+                    if (helpText.length) {
+                        helpText.text("Start typing to see employee suggestions").removeClass('text-success text-info').addClass('text-muted');
+                    }
+                }
+            });
+        }
+
+        // Payment To dropdown change handler to update acknowledgement text
+        $('#paymentTo').change(function() {
+            const paymentType = $(this).val();
+            const acknowledgementLabel = $('label[for="acknowledgementCheck"]');
+
+            if (paymentType === 'Vendor') {
+                acknowledgementLabel.text('I declare that I have verified the invoice against the vendor contract.');
+            } else if (paymentType === 'Self') {
+                acknowledgementLabel.text('I declare that I have verified this claim against applicable internal policies.');
+            } else {
+                // Default text when no selection is made
+                acknowledgementLabel.text('I declare that I have verified the invoice against the vendor contract.');
+            }
+        });
+
+        // Set initial acknowledgement text based on current selection
+        $(document).ready(function() {
+            const initialPaymentType = $('#paymentTo').val();
+            if (initialPaymentType === 'Self') {
+                $('label[for="acknowledgementCheck"]').text('I declare that I have verified this claim against applicable internal policies.');
+            } else {
+                $('label[for="acknowledgementCheck"]').text('I declare that I have verified the invoice against the vendor contract.');
             }
         });
     });

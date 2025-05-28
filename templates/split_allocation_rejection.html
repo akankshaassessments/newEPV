@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reject Split Invoice Allocation - EPV System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .rejection-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .expense-details {
+            background-color: #f8f9fa;
+            border-left: 4px solid #dc3545;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .allocation-details {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .rejection-form {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-icon {
+            font-size: 3rem;
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        .btn-reject {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: white;
+            padding: 12px 30px;
+        }
+        .btn-reject:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+            color: white;
+        }
+        .required-field {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="rejection-container">
+            <div class="rejection-form">
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle header-icon"></i>
+                    <h2 class="mb-4">Reject Split Invoice Allocation</h2>
+                </div>
+
+                <!-- EPV Details -->
+                <div class="expense-details">
+                    <h5><i class="fas fa-file-invoice"></i> Split Invoice Details</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>EPV ID:</strong> {{ epv.epv_id }}</p>
+                            <p><strong>Employee:</strong> {{ epv.employee_name }}</p>
+                            <p><strong>Email:</strong> {{ epv.email_id }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Total Amount:</strong> ₹{{ "{:,.2f}".format(epv.total_amount) }}</p>
+                            <p><strong>Date Range:</strong> {{ epv.from_date }} to {{ epv.to_date }}</p>
+                            <p><strong>Submitted:</strong> {{ epv.submission_date.strftime('%d-%m-%Y %H:%M') if epv.submission_date else 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Allocation Details -->
+                <div class="allocation-details">
+                    <h5><i class="fas fa-layer-group"></i> Allocation to Reject</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Cost Center:</strong> {{ allocation.cost_center_name }}</p>
+                            <p><strong>Allocated Amount:</strong> ₹{{ "{:,.2f}".format(allocation.allocated_amount) }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Approver:</strong> {{ allocation.approver_name or allocation.approver_email }}</p>
+                            <p><strong>Description:</strong> {{ allocation.description or 'No description provided' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rejection Form -->
+                <form method="POST" action="{{ url_for('process_split_allocation_rejection') }}" id="rejectionForm">
+                    <input type="hidden" name="token" value="{{ token }}">
+                    
+                    <div class="mb-4">
+                        <label for="reason" class="form-label">
+                            <strong>Reason for Rejection <span class="required-field">*</span></strong>
+                        </label>
+                        <textarea class="form-control" id="reason" name="reason" rows="5" 
+                                  placeholder="Please provide a detailed reason for rejecting this allocation..." 
+                                  required></textarea>
+                        <div class="form-text">
+                            Please provide a clear and detailed explanation for why you are rejecting this allocation. 
+                            This will help the submitter understand the issue and take appropriate action.
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Important:</strong> 
+                        <ul class="mb-0 mt-2">
+                            <li>This rejection only affects the allocation for <strong>{{ allocation.cost_center_name }}</strong></li>
+                            <li>The rejected amount (₹{{ "{:,.2f}".format(allocation.allocated_amount) }}) will be subtracted from the total</li>
+                            <li>Other allocations in this split invoice may still be processed if approved</li>
+                            <li>The submitter will be notified of this rejection via email</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <button type="button" class="btn btn-secondary me-md-2" onclick="window.history.back()">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-reject" id="rejectBtn">
+                            <i class="fas fa-times-circle"></i> Reject Allocation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-warning" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="mt-3">Processing Rejection...</h5>
+                    <p class="text-muted">Please wait while we process your rejection.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('rejectionForm').addEventListener('submit', function(e) {
+            const reason = document.getElementById('reason').value.trim();
+            
+            if (!reason) {
+                e.preventDefault();
+                alert('Please provide a reason for rejection.');
+                return false;
+            }
+            
+            if (reason.length < 10) {
+                e.preventDefault();
+                alert('Please provide a more detailed reason (at least 10 characters).');
+                return false;
+            }
+            
+            // Show loading modal
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+            
+            // Disable the submit button to prevent double submission
+            document.getElementById('rejectBtn').disabled = true;
+        });
+
+        // Auto-resize textarea
+        document.getElementById('reason').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    </script>
+</body>
+</html>

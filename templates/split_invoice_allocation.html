@@ -408,9 +408,9 @@
                             <label for="allocationApprover-${allocationIndex}" class="form-label required-field">Approver Email</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                                <input type="email" class="form-control" id="allocationApprover-${allocationIndex}" name="allocations[${allocationIndex}][approver_email]" placeholder="Enter approver's email address" required>
+                                <input type="email" class="form-control approver-email-input" id="allocationApprover-${allocationIndex}" name="allocations[${allocationIndex}][approver_email]" placeholder="Start typing name or email" autocomplete="off" required>
                             </div>
-                            <div class="form-text">Enter the email address of the person who should approve this allocation</div>
+                            <div class="form-text">Start typing to see employee suggestions</div>
                         </div>
                     </div>
                 </div>
@@ -420,6 +420,9 @@
 
             // Initialize autocomplete for the new cost center field
             initCostCenterAutocomplete($(`#costCenterName-${allocationIndex}`), $(`#costCenter-${allocationIndex}`));
+
+            // Initialize email autocomplete for the new approver field
+            initEmailAutocomplete($(`#allocationApprover-${allocationIndex}`));
 
             // Add event listeners for the new allocation
             $(`#allocationAmount-${allocationIndex}`).on('input', updateAllocationSummary);
@@ -490,6 +493,59 @@
                                 }
                             }
                         });
+                    }
+                }
+            });
+        }
+
+        // Function to initialize email autocomplete for approver selection
+        function initEmailAutocomplete(inputElement) {
+            inputElement.autocomplete({
+                source: "/api/employee-emails",
+                minLength: 2,
+                select: function(event, ui) {
+                    // Fill in the email value
+                    inputElement.val(ui.item.email);
+
+                    // Update help text to show selection
+                    const helpText = inputElement.closest('.col-md-12').find('.form-text');
+                    if (helpText.length) {
+                        helpText.text(`Selected: ${ui.item.name} (${ui.item.email})`).removeClass('text-muted').addClass('text-success');
+                    }
+
+                    return false; // Prevent default behavior
+                },
+                response: function(event, ui) {
+                    const helpText = inputElement.closest('.col-md-12').find('.form-text');
+                    if (helpText.length) {
+                        if (ui.content.length === 0) {
+                            helpText.text("No matching employees found - you can enter email manually").removeClass('text-success').addClass('text-muted');
+                        } else {
+                            helpText.text("Please select an employee from the list").removeClass('text-muted').addClass('text-info');
+                        }
+                    }
+                },
+                change: function(event, ui) {
+                    // Reset help text when user types something not from the list
+                    if (!ui.item) {
+                        const helpText = inputElement.closest('.col-md-12').find('.form-text');
+                        if (helpText.length) {
+                            helpText.text("Start typing to see employee suggestions").removeClass('text-success text-info').addClass('text-muted');
+                        }
+                    }
+                },
+                focus: function(event, ui) {
+                    // Prevent the input from being updated when hovering over items
+                    return false;
+                }
+            });
+
+            // Clear help text styling when user starts typing
+            inputElement.on('input', function() {
+                if ($(this).val().length < 2) {
+                    const helpText = $(this).closest('.col-md-12').find('.form-text');
+                    if (helpText.length) {
+                        helpText.text("Start typing to see employee suggestions").removeClass('text-success text-info').addClass('text-muted');
                     }
                 }
             });

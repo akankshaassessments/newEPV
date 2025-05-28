@@ -10,22 +10,31 @@
         font-weight: 500;
     }
     .status-submitted {
-        background-color: var(--sf-blue);
+        background-color: #0d6efd; /* Bootstrap primary blue */
         color: white;
     }
     .status-approved {
-        background-color: var(--sf-success);
+        background-color: #198754; /* Bootstrap success green */
         color: white;
     }
     .status-rejected {
-        background-color: var(--sf-error);
+        background-color: #dc3545; /* Bootstrap danger red */
         color: white;
     }
-    .status-pending, .status-pending_approval {
-        background-color: var(--sf-warning);
-        color: var(--sf-text);
+    .status-pending, .status-pending_approval, .status-pending-approval {
+        background-color: #ffc107; /* Bootstrap warning yellow */
+        color: #212529; /* Dark text for better contrast */
     }
     .status-partially-approved {
+        background-color: #6c757d; /* Bootstrap secondary color */
+        color: white;
+    }
+    .status-processed {
+        background-color: #20c997; /* Bootstrap teal */
+        color: white;
+    }
+    /* Default status badge styling for any unhandled statuses */
+    .status-badge:not([class*="status-"]) {
         background-color: #6c757d; /* Bootstrap secondary color */
         color: white;
     }
@@ -42,23 +51,7 @@
         transform: translateY(-50%);
         color: var(--sf-neutral-dark);
     }
-    .stat-card {
-        transition: all 0.3s ease;
-        border: none;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    .stat-card h3 {
-        font-size: 1.8rem;
-        font-weight: 600;
-    }
-    .stat-card p {
-        color: #6c757d;
-        font-size: 0.9rem;
-    }
+
 
     /* Split Invoice Styling */
     .master-invoice {
@@ -151,41 +144,7 @@
             </div>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card stat-card bg-light">
-                    <div class="card-body text-center">
-                        <h3 class="text-primary mb-0">{{ scorecard_data.total_records }}</h3>
-                        <p class="mb-0">Total Records</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stat-card bg-light">
-                    <div class="card-body text-center">
-                        <h3 class="text-warning mb-0">{{ scorecard_data.pending_count }}</h3>
-                        <p class="mb-0">Pending</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stat-card bg-light">
-                    <div class="card-body text-center">
-                        <h3 class="text-success mb-0">{{ scorecard_data.approved_count }}</h3>
-                        <p class="mb-0">Approved</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stat-card bg-light">
-                    <div class="card-body text-center">
-                        <h3 class="text-info mb-0">{{ scorecard_data.total_amount }}</h3>
-                        <p class="mb-0">Total Amount</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+
 
         <div class="row">
             <div class="col-12">
@@ -210,9 +169,10 @@
                                         <th>Submission Date</th>
                                         <th>Cost Center</th>
                                         <th>Total Amount</th>
-                                        <th>Manager Approval</th>
+                                        <th>Manager<br>Approval</th>
                                         <th>Finance Processing</th>
                                         <th>Finance Approval</th>
+                                        <th>TAT (Days)</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -224,6 +184,8 @@
                                             {{ record.epv_id }}
                                             {% if record.invoice_type == 'master' %}
                                                 <span class="badge bg-primary">Master</span>
+                                            {% elif record.invoice_type == 'split' %}
+                                                <br><small class="text-muted"><i class="fas fa-share-alt"></i> Split Invoice</small>
                                             {% endif %}
                                         </td>
                                         <td>{{ record.employee_name }}</td>
@@ -237,7 +199,9 @@
                                                 -
                                             {% endif %}
                                         </td>
-                                        <td>₹{{ record.total_amount }}</td>
+                                        <td>
+                                            ₹{{ record.total_amount }}
+                                        </td>
                                         <!-- Manager Approval Status -->
                                         <td>
                                             {% if record.status == 'rejected' and record.rejection_reason and record.rejection_reason.startswith('[FINANCE REJECTION]') %}
@@ -245,7 +209,7 @@
                                                     Approved
                                                 </span>
                                             {% else %}
-                                                <span class="status-badge status-{{ record.status.lower() }}">
+                                                <span class="status-badge {% if record.invoice_type == 'split' and record.status == 'pending' %}status-pending{% else %}status-{{ record.status.lower().replace('_', '-') }}{% endif %}">
                                                     {% if record.status == 'pending_approval' %}
                                                         Pending
                                                     {% elif record.status == 'approved' %}
@@ -254,6 +218,24 @@
                                                         Rejected
                                                     {% elif record.status == 'submitted' %}
                                                         Submitted
+                                                    {% elif record.status == 'partially_approved' %}
+                                                        {% if record.invoice_type == 'split' %}
+                                                            {% set approved_count = record.allocations|selectattr('status', 'equalto', 'approved')|list|length if record.allocations else 0 %}
+                                                            {% set total_count = record.allocations|length if record.allocations else 0 %}
+                                                            <span class="partially-approved-badge"
+                                                                  style="cursor: pointer;"
+                                                                  data-bs-toggle="modal"
+                                                                  data-bs-target="#allocationDetailsModal"
+                                                                  data-epv-id="{{ record.epv_id }}"
+                                                                  onclick="loadAllocationDetails('{{ record.epv_id }}')"
+                                                                  title="Click to view allocation details">
+                                                                Partially Approved ({{ approved_count }}/{{ total_count }})
+                                                            </span>
+                                                        {% else %}
+                                                            Partially Approved
+                                                        {% endif %}
+                                                    {% elif record.invoice_type == 'split' and record.status == 'pending' %}
+                                                        Pending
                                                     {% else %}
                                                         {{ record.status|title }}
                                                     {% endif %}
@@ -324,6 +306,20 @@
                                                 <span class="status-badge">N/A</span>
                                             {% endif %}
                                         </td>
+
+                                        <!-- TAT (Turn Around Time) -->
+                                        <td>
+                                            {% if record.tat_days is not none %}
+                                                {% if record.tat_days <= 5 %}
+                                                    <span class="text-success fw-bold">{{ record.tat_days }}</span>
+                                                {% else %}
+                                                    <span class="text-danger fw-bold">{{ record.tat_days }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+
                                         <td>
                                             <div class="d-flex gap-2">
                                                 <a href="{{ url_for('epv_record', epv_id=record.epv_id) }}" class="btn btn-sm btn-primary" title="View Details">
@@ -351,12 +347,114 @@
             </div>
         </div>
     </div>
+
+    <!-- Allocation Details Modal -->
+    <div class="modal fade" id="allocationDetailsModal" tabindex="-1" aria-labelledby="allocationDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="allocationDetailsModalLabel">
+                        <i class="fas fa-share-alt me-2"></i>Split Invoice Allocation Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>EPV ID:</strong> <span id="modalEpvId"></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Cost Center</th>
+                                    <th>Amount</th>
+                                    <th>Expense Head</th>
+                                    <th>Approver</th>
+                                    <th>Status</th>
+                                    <th>Action Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allocationDetailsTableBody">
+                                <!-- Allocation details will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
     <script>
         // Handle filter changes
         document.addEventListener('DOMContentLoaded', function() {
+
+            // Function to load allocation details
+            window.loadAllocationDetails = function(epvId) {
+                // Set EPV ID in modal
+                document.getElementById('modalEpvId').textContent = epvId;
+
+                // Show loading state
+                const tableBody = document.getElementById('allocationDetailsTableBody');
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+
+                // Fetch allocation details
+                fetch(`/api/epv/${epvId}/allocations`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            populateAllocationTable(data.allocations);
+                        } else {
+                            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading allocation details</td></tr>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching allocation details:', error);
+                        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading allocation details</td></tr>';
+                    });
+            };
+
+            // Function to populate allocation table
+            function populateAllocationTable(allocations) {
+                const tableBody = document.getElementById('allocationDetailsTableBody');
+                tableBody.innerHTML = '';
+
+                allocations.forEach(function(allocation) {
+                    const row = document.createElement('tr');
+
+                    // Format action date
+                    let actionDate = '-';
+                    if (allocation.action_date) {
+                        const date = new Date(allocation.action_date);
+                        actionDate = date.toLocaleDateString('en-GB') + ' ' + date.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+                    }
+
+                    // Status badge
+                    let statusBadge = '';
+                    if (allocation.status === 'approved') {
+                        statusBadge = '<span class="badge bg-success">Approved</span>';
+                    } else if (allocation.status === 'rejected') {
+                        statusBadge = '<span class="badge bg-danger">Rejected</span>';
+                    } else {
+                        statusBadge = '<span class="badge bg-warning">Pending</span>';
+                    }
+
+                    row.innerHTML = `
+                        <td>${allocation.cost_center || '-'}</td>
+                        <td>₹${allocation.amount || '0'}</td>
+                        <td>${allocation.expense_head || '-'}</td>
+                        <td>${allocation.approver_email || '-'}</td>
+                        <td>${statusBadge}</td>
+                        <td>${actionDate}</td>
+                    `;
+
+                    tableBody.appendChild(row);
+                });
+            }
             // Auto-submit form when any filter changes
             const filterSelects = document.querySelectorAll('.filter-select');
             filterSelects.forEach(select => {

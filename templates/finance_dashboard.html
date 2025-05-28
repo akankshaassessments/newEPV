@@ -17,6 +17,9 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="true">
                                 <i class="fas fa-clock me-1"></i> For Approval
+                                {% if pending_epvs|length > 0 %}
+                                <span class="badge bg-danger ms-1">{{ pending_epvs|length }}</span>
+                                {% endif %}
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -52,6 +55,9 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="pending-approval-tab" data-bs-toggle="tab" data-bs-target="#pending-approval" type="button" role="tab" aria-controls="pending-approval" aria-selected="true">
                                 <i class="fas fa-clock me-1"></i> For Approval
+                                {% if pending_approval_entries|length > 0 %}
+                                <span class="badge bg-danger ms-1">{{ pending_approval_entries|length }}</span>
+                                {% endif %}
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -77,7 +83,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label for="pendingDateFilter" class="form-label">Date Range</label>
+                                    <label for="pendingDateFilter" class="form-label">Date Range (Approved Date)</label>
                                     <div class="input-group">
                                         <input type="date" class="form-control date-start" id="pendingDateStart"
                                                value="{{ today.strftime('%Y-%m-%d') }}">
@@ -110,7 +116,7 @@
                                             <th>Employee</th>
                                             <th>Cost Center</th>
                                             <th>City</th>
-                                            <th>Submission Date</th>
+                                            <th>Approved Date</th>
                                             <th>Total Amount</th>
                                             <th>Status</th>
                                             <th>Actions</th>
@@ -123,7 +129,7 @@
                                             <td>{{ epv.employee_name }}</td>
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
-                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>{{ epv.approved_on.strftime('%d-%m-%Y') if epv.approved_on else 'N/A' }}</td>
                                             <td>₹{{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 {% if epv.is_locked %}
@@ -170,7 +176,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label for="resubmittedDateFilter" class="form-label">Date Range</label>
+                                    <label for="resubmittedDateFilter" class="form-label">Date Range (Resubmitted Date)</label>
                                     <div class="input-group">
                                         <input type="date" class="form-control date-start" id="resubmittedDateStart"
                                                value="{{ today.strftime('%Y-%m-%d') }}">
@@ -203,7 +209,7 @@
                                             <th>Employee</th>
                                             <th>Cost Center</th>
                                             <th>City</th>
-                                            <th>Submission Date</th>
+                                            <th>Resubmitted Date</th>
                                             <th>Total Amount</th>
                                             <th>Status</th>
                                             <th>Actions</th>
@@ -216,7 +222,7 @@
                                             <td>{{ epv.employee_name }}</td>
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
-                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>{{ epv.approved_on.strftime('%d-%m-%Y') if epv.approved_on else 'N/A' }}</td>
                                             <td>₹{{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 <span class="badge bg-info">
@@ -258,7 +264,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label for="pendingPaymentDateFilter" class="form-label">Date Range</label>
+                                    <label for="pendingPaymentDateFilter" class="form-label">Date Range (Approved Date)</label>
                                     <div class="input-group">
                                         <input type="date" class="form-control date-start" id="pendingPaymentDateStart"
                                                value="{{ today.strftime('%Y-%m-%d') }}">
@@ -291,7 +297,7 @@
                                             <th>Employee</th>
                                             <th>Cost Center</th>
                                             <th>City</th>
-                                            <th>Submission Date</th>
+                                            <th>Approved Date</th>
                                             <th>Total Amount</th>
                                             <th>Status</th>
                                             <th>Actions</th>
@@ -304,7 +310,7 @@
                                             <td>{{ epv.employee_name }}</td>
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
-                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>{{ epv.approved_on.strftime('%d-%m-%Y') if epv.approved_on else 'N/A' }}</td>
                                             <td>₹{{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 <span class="badge bg-warning">
@@ -340,7 +346,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label for="rejectedDateFilter" class="form-label">Date Range</label>
+                                    <label for="rejectedDateFilter" class="form-label">Date Range (Rejected Date)</label>
                                     <div class="input-group">
                                         <input type="date" class="form-control date-start" id="rejectedDateStart"
                                                value="{{ today.strftime('%Y-%m-%d') }}">
@@ -373,7 +379,7 @@
                                             <th>Employee</th>
                                             <th>Cost Center</th>
                                             <th>City</th>
-                                            <th>Submission Date</th>
+                                            <th>Rejected Date</th>
                                             <th>Total Amount</th>
                                             <th>Status</th>
                                             <th>Actions</th>
@@ -386,7 +392,7 @@
                                             <td>{{ epv.employee_name }}</td>
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
-                                            <td>{{ epv.submission_date.strftime('%d-%m-%Y') }}</td>
+                                            <td>{{ epv.rejected_on.strftime('%d-%m-%Y') if epv.rejected_on else 'N/A' }}</td>
                                             <td>₹{{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 <span class="badge bg-danger">
@@ -417,7 +423,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label for="processedDateFilter" class="form-label">Date Range</label>
+                                    <label for="processedDateFilter" class="form-label">Date Range (Processed Date)</label>
                                     <div class="input-group">
                                         <input type="date" class="form-control date-start" id="processedDateStart"
                                                value="{{ today.strftime('%Y-%m-%d') }}">
@@ -669,6 +675,27 @@
 </div>
 {% endblock %}
 
+{% block styles %}
+<style>
+    /* Make date columns wider to show full dates */
+    .table th:nth-child(5), .table td:nth-child(5),
+    .table th:nth-child(6), .table td:nth-child(6) {
+        min-width: 120px;
+        white-space: nowrap;
+    }
+
+    /* Make date input fields wider */
+    .date-start, .date-end {
+        min-width: 140px;
+    }
+
+    /* Ensure table is responsive but shows full content */
+    .table-responsive {
+        overflow-x: auto;
+    }
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -782,17 +809,20 @@
                         showRow = false;
                     }
 
-                    // Apply search filter - completely new implementation
+                    // Apply search filter
                     if (searchValue) {
-                        // Get the entire row's text content
-                        const rowText = row.innerText || row.textContent;
-                        const rowTextLower = rowText.toLowerCase();
+                        // Get all text content from the row, excluding action buttons
+                        const cells = row.querySelectorAll('td:not(:last-child)'); // Exclude last column (actions)
+                        let rowText = '';
+                        cells.forEach(cell => {
+                            // Get text content, excluding badge text for cleaner search
+                            const cellText = cell.textContent || cell.innerText || '';
+                            rowText += cellText.toLowerCase() + ' ';
+                        });
 
-                        // Simple direct string comparison
-                        if (rowTextLower.indexOf(searchValue) === -1) {
+                        // Check if search value is found in the row text
+                        if (rowText.indexOf(searchValue) === -1) {
                             showRow = false;
-
-
                         }
                     }
 

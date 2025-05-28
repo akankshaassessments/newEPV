@@ -50,6 +50,8 @@
                                             <span class="badge bg-primary">Master Invoice</span>
                                         {% elif epv.invoice_type == 'sub' %}
                                             <span class="badge bg-info">Sub Invoice</span>
+                                        {% elif epv.invoice_type == 'split' %}
+                                            <span class="badge bg-warning">Split Invoice</span>
                                         {% else %}
                                             <span class="badge bg-secondary">Standard Invoice</span>
                                         {% endif %}
@@ -166,6 +168,104 @@
                     </div>
                     {% endif %}
 
+                    <!-- Split Invoice Allocation Details -->
+                    {% if epv.invoice_type == 'split' %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Split Invoice Allocation Details</h6>
+                                    <p class="text-muted small mb-0">This invoice has been split across multiple cost centers with different approvers.</p>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Cost Center</th>
+                                                    <th>Expense Head</th>
+                                                    <th>Allocated Amount</th>
+                                                    <th>Approver</th>
+                                                    <th>Status</th>
+                                                    <th>Action Date</th>
+                                                    <th>Comments</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for allocation in epv.allocations %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ allocation.cost_center_name }}</strong>
+                                                    </td>
+                                                    <td>{{ allocation.expense_head or 'General' }}</td>
+                                                    <td>
+                                                        <span class="fw-bold text-primary">₹{{ allocation.allocated_amount|round(2) }}</span>
+                                                    </td>
+                                                    <td>
+                                                        {{ allocation.approver_email }}
+                                                    </td>
+                                                    <td>
+                                                        {% if allocation.status == 'approved' %}
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-check"></i> Approved
+                                                            </span>
+                                                        {% elif allocation.status == 'rejected' %}
+                                                            <span class="badge bg-danger">
+                                                                <i class="fas fa-times"></i> Rejected
+                                                            </span>
+                                                        {% elif allocation.status == 'pending' %}
+                                                            <span class="badge bg-warning">
+                                                                <i class="fas fa-clock"></i> Pending
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">{{ allocation.status|title }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if allocation.action_date %}
+                                                            {{ allocation.action_date.strftime('%d-%m-%Y %H:%M') }}
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if allocation.rejection_reason %}
+                                                            <span class="text-danger">{{ allocation.rejection_reason }}</span>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Total Amount:</small><br>
+                                            <strong class="text-primary">₹{{ epv.total_amount|round(2) }}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Approved Amount:</small><br>
+                                            <strong class="text-success">₹{{ epv.approved_amount|round(2) if epv.approved_amount else 0 }}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Rejected Amount:</small><br>
+                                            <strong class="text-danger">₹{{ epv.rejected_amount|round(2) if epv.rejected_amount else 0 }}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Pending Amount:</small><br>
+                                            <strong class="text-warning">₹{{ epv.pending_amount|round(2) if epv.pending_amount else 0 }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Finance Entry Form -->
                     <form method="POST" action="{{ url_for('finance_entry', epv_id=epv.epv_id) }}">
                         <h6>Finance Entry Details</h6>
@@ -176,7 +276,8 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="vendor_name" class="form-label">Vendor Name</label>
-                                <input type="text" class="form-control" id="vendor_name" name="vendor_name" required>
+                                <input type="text" class="form-control" id="vendor_name" name="vendor_name" required autocomplete="off">
+                                <small id="vendorNameHelp" class="form-text text-muted">Start typing to see suggestions from previous entries</small>
                             </div>
                         </div>
                         <div class="row">
@@ -210,8 +311,10 @@
                                 <label for="fcra_status" class="form-label">FCRA Status</label>
                                 <select class="form-select" id="fcra_status" name="fcra_status" required>
                                     <option value="">Select FCRA Status</option>
-                                    <option value="FCRA">FCRA</option>
-                                    <option value="Non-FCRA">Non-FCRA</option>
+                                    <option value="MUM FCRA">MUM FCRA</option>
+                                    <option value="MUM NONFC">MUM NONFC</option>
+                                    <option value="PUN FCRA">PUN FCRA</option>
+                                    <option value="PUN NONFC">PUN NONFC</option>
                                 </select>
                             </div>
                         </div>
@@ -275,4 +378,47 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Vendor name autocomplete
+        $("#vendor_name").autocomplete({
+            source: "/api/vendors",
+            minLength: 2,
+            select: function(event, ui) {
+                // Fill in vendor name
+                $("#vendor_name").val(ui.item.value);
+                $("#vendorNameHelp").text("Vendor selected from previous entries").removeClass("text-muted").addClass("text-success");
+                return true;
+            },
+            response: function(event, ui) {
+                // Show a message if no results found
+                if (ui.content.length === 0) {
+                    $("#vendorNameHelp").text("No matching vendors found - you can enter a new vendor name").removeClass("text-success").addClass("text-muted");
+                } else {
+                    $("#vendorNameHelp").text("Please select a vendor from the list or continue typing").removeClass("text-muted").addClass("text-info");
+                }
+            },
+            change: function(event, ui) {
+                // Reset help text when user types something not from the list
+                if (!ui.item) {
+                    $("#vendorNameHelp").text("Start typing to see suggestions from previous entries").removeClass("text-success text-info").addClass("text-muted");
+                }
+            },
+            focus: function(event, ui) {
+                // Prevent the input from being updated when hovering over items
+                return false;
+            }
+        });
+
+        // Clear help text styling when user starts typing
+        $("#vendor_name").on('input', function() {
+            if ($(this).val().length < 2) {
+                $("#vendorNameHelp").text("Start typing to see suggestions from previous entries").removeClass("text-success text-info").addClass("text-muted");
+            }
+        });
+    });
+</script>
 {% endblock %}

@@ -13,7 +13,7 @@ from flask_dance.consumer.storage import MemoryStorage
 from flask_dance.consumer import oauth_authorized, oauth_error
 from dotenv import load_dotenv
 from sqlalchemy import func
-from models import db, CostCenter, EmployeeDetails, SettingsFinance, ExpenseHead, EPV, EPVItem, EPVApproval, User, OAuth, init_db, CityAssignment, FinanceEntry, SupplementaryDocument
+from models import db, CostCenter, EmployeeDetails, SettingsFinance, ExpenseHead, EPV, EPVItem, EPVApproval, EPVAllocation, User, OAuth, init_db, CityAssignment, FinanceEntry, SupplementaryDocument
 from pdf_converter import process_files
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -373,6 +373,14 @@ def generate_cost_center_code(cost_center_name):
             clean_name += c
 
     return clean_name
+
+def get_amount_in_words_for_split(amount):
+    """Helper function to convert amount to words for split invoices"""
+    try:
+        from utils import number_to_words
+        return number_to_words(amount)
+    except Exception:
+        return f"Rupees {amount:.2f} only"
 
 # Load environment variables
 load_dotenv()
@@ -1824,6 +1832,330 @@ def api_reports_expense_trends():
 
     return jsonify(response)
 
+# Function to handle split invoice submission from main expense form
+def handle_split_invoice_submission(request, session, user_info):
+    """Handle split invoice submission from the main expense form"""
+    try:
+        print("DEBUG: Processing split invoice from main expense form")
+
+        # Get basic form data
+        employee_name = request.form.get('employee_name')
+        employee_id = session.get('employee_id')
+        cost_center_id = request.form.get('cost_center')  # Primary cost center
+        cost_center_name_input = request.form.get('cost_center_name')
+
+        # Get master invoice details from the first expense item
+        master_invoice_date = request.form.get('invoice_date[]')
+        master_invoice_amount = float(request.form.get('amount[]', 0))
+        master_invoice_description = request.form.get('description[]', '')
+
+        # Get primary cost center details
+        primary_cost_center = None
+        if cost_center_id:
+            try:
+                primary_cost_center = CostCenter.query.filter_by(id=int(cost_center_id)).first()
+            except ValueError:
+                pass
+
+        if not primary_cost_center:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid primary cost center selected.'
+            })
+
+        # Get allocation data
+        allocation_cost_centers = request.form.getlist('allocation_cost_center[]')
+        allocation_cost_center_ids = request.form.getlist('allocation_cost_center_id[]')
+        allocation_amounts = request.form.getlist('allocation_amount[]')
+        allocation_approvers = request.form.getlist('allocation_approver[]')
+        allocation_expense_heads = request.form.getlist('allocation_expense_head[]')
+
+        print(f"DEBUG: Found {len(allocation_cost_centers)} allocations")
+        print(f"DEBUG: Allocation cost centers: {allocation_cost_centers}")
+        print(f"DEBUG: Allocation amounts: {allocation_amounts}")
+        print(f"DEBUG: Allocation approvers: {allocation_approvers}")
+        print(f"DEBUG: All form data keys: {list(request.form.keys())}")
+
+        # Debug: Print all form data that contains 'allocation'
+        for key in request.form.keys():
+            if 'allocation' in key.lower():
+                print(f"DEBUG: Form field {key}: {request.form.getlist(key)}")
+
+        # Validate allocations
+        if not allocation_cost_centers or len(allocation_cost_centers) == 0:
+            return jsonify({
+                'success': False,
+                'message': 'At least one allocation is required for split invoices. Please add allocation details using the "Add Allocation" button.'
+            })
+
+        # Check if all allocation fields are empty
+        all_empty = True
+        for i in range(len(allocation_cost_centers)):
+            if (i < len(allocation_cost_centers) and allocation_cost_centers[i] and
+                i < len(allocation_amounts) and allocation_amounts[i] and
+                i < len(allocation_approvers) and allocation_approvers[i]):
+                all_empty = False
+                break
+
+        if all_empty:
+            return jsonify({
+                'success': False,
+                'message': 'Please fill in the allocation details. For split invoices, you need to specify cost center, amount, and approver email for each allocation.'
+            })
+
+        # Process the receipt file (first expense item file)
+        receipt_files = request.files.getlist('receipt[]')
+        if not receipt_files or not receipt_files[0].filename:
+            return jsonify({
+                'success': False,
+                'message': 'Receipt file is required for split invoices.'
+            })
+
+        # Collect allocation data for PDF generation
+        allocation_data = []
+        for i in range(len(allocation_cost_centers)):
+            if (i < len(allocation_cost_centers) and allocation_cost_centers[i] and
+                i < len(allocation_amounts) and allocation_amounts[i] and
+                i < len(allocation_approvers) and allocation_approvers[i]):
+
+                # Get cost center details
+                allocation_cost_center = None
+                if i < len(allocation_cost_center_ids) and allocation_cost_center_ids[i]:
+                    try:
+                        allocation_cost_center = CostCenter.query.filter_by(id=int(allocation_cost_center_ids[i])).first()
+                    except ValueError:
+                        pass
+
+                if not allocation_cost_center:
+                    # Try to find by name
+                    allocation_cost_center = CostCenter.query.filter_by(costcenter=allocation_cost_centers[i]).first()
+
+                if allocation_cost_center:
+                    # Get approver name
+                    approver_name = allocation_approvers[i]
+                    approver = EmployeeDetails.query.filter_by(email=allocation_approvers[i]).first()
+                    if approver and approver.name:
+                        approver_name = approver.name
+
+                    # Get expense head for this allocation
+                    expense_head = allocation_expense_heads[i] if i < len(allocation_expense_heads) else 'General'
+
+                    allocation_data.append({
+                        'cost_center': allocation_cost_center.costcenter,
+                        'amount': float(allocation_amounts[i]),
+                        'expense_head': expense_head,
+                        'approver': approver_name,
+                        'description': f'Split allocation for {allocation_cost_center.costcenter}'
+                    })
+
+
+
+        # Generate expense data structure for PDF generation including split details
+        expense_data = {
+            'employee_id': employee_id,
+            'employee_name': employee_name,
+            'from_date': request.form.get('from_date'),
+            'to_date': request.form.get('to_date'),
+            'cost_center': primary_cost_center.costcenter,
+            'expense_type': 'Split Invoice',
+            'epv_id': f"EPV-{datetime.now().strftime('%Y%m%d')}-{generate_cost_center_code(primary_cost_center.costcenter)}-{uuid.uuid4().hex[:10].upper()}",
+            'total_amount': f"{master_invoice_amount:.2f}",
+            'amount_in_words': get_amount_in_words_for_split(master_invoice_amount),
+            'is_split_invoice': True,  # Flag to indicate this is a split invoice
+            'split_allocations': allocation_data,  # Include allocation details
+            'expenses': [{
+                'invoice_date': master_invoice_date,
+                'expense_head': 'Split Invoice',
+                'amount': f"{master_invoice_amount:.2f}",
+                'description': master_invoice_description,
+                'split_invoice': True
+            }]
+        }
+
+        # Step 1: Generate expense document PDF
+        from pdf_converter import generate_expense_document
+        expense_pdf_path = generate_expense_document(expense_data)
+
+        if not expense_pdf_path:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to generate expense document'
+            })
+
+        # Step 2: Process the uploaded files and merge with expense document
+        result = process_files(
+            files=[receipt_files[0]],
+            drive_folder_id=primary_cost_center.drive_id,
+            employee_name=employee_name,
+            cost_center_name=primary_cost_center.costcenter,
+            expense_pdf_path=expense_pdf_path
+        )
+
+        # Check if file processing was successful
+        if not result['success']:
+            error_msg = result.get('error') or "Failed to process files."
+            user_msg = result.get('user_message') or "There was an issue with the file processing."
+            return jsonify({
+                'success': False,
+                'message': user_msg,
+                'error': error_msg
+            })
+
+        # Get the processed file information
+        if not (result.get('drive_file_id') and result.get('drive_file_url')):
+            return jsonify({
+                'success': False,
+                'message': 'File processing completed but Google Drive upload failed.'
+            })
+
+        file_id = result['drive_file_id']
+        file_url = result['drive_file_url']
+
+        print(f"DEBUG: Split invoice file processed and uploaded to Google Drive: {file_url}")
+
+        # Step 3: Create database records
+        # Create main EPV record
+        epv_id = expense_data['epv_id']
+        new_epv = EPV(
+            epv_id=epv_id,
+            email_id=session.get('email', ''),
+            employee_name=employee_name,
+            employee_id=employee_id,
+            from_date=datetime.strptime(request.form.get('from_date'), '%Y-%m-%d'),
+            to_date=datetime.strptime(request.form.get('to_date'), '%Y-%m-%d'),
+            payment_to='Split Invoice',
+            submission_date=datetime.now(),
+            academic_year=f"{datetime.now().year}-{datetime.now().year + 1}",
+            cost_center_id=primary_cost_center.id,
+            cost_center_name=primary_cost_center.costcenter,
+            city=request.form.get('city', ''),
+            total_amount=master_invoice_amount,
+            amount_in_words=get_amount_in_words_for_split(master_invoice_amount),
+            status='submitted',
+            file_url=file_url,
+            drive_file_id=file_id,
+            invoice_type='split'
+        )
+
+        db.session.add(new_epv)
+        db.session.flush()  # Get the ID without committing
+
+        # Create EPV item for the main invoice
+        main_item = EPVItem(
+            epv_id=new_epv.id,
+            expense_invoice_date=datetime.strptime(master_invoice_date, '%Y-%m-%d'),
+            expense_head='Split Invoice',
+            description=master_invoice_description,
+            amount=master_invoice_amount,
+            gst=0.0,
+            split_invoice=False
+        )
+        db.session.add(main_item)
+
+        # Create allocation records
+        for i in range(len(allocation_cost_centers)):
+            if i < len(allocation_amounts) and allocation_amounts[i]:
+                # Get cost center for this allocation
+                allocation_cost_center = None
+                if i < len(allocation_cost_center_ids) and allocation_cost_center_ids[i]:
+                    try:
+                        allocation_cost_center = CostCenter.query.filter_by(id=int(allocation_cost_center_ids[i])).first()
+                    except ValueError:
+                        pass
+
+                if not allocation_cost_center:
+                    # Try to find by name
+                    allocation_cost_center = CostCenter.query.filter_by(costcenter=allocation_cost_centers[i]).first()
+
+                if allocation_cost_center:
+                    # Get expense head for this allocation
+                    expense_head = allocation_expense_heads[i] if i < len(allocation_expense_heads) else 'General'
+
+                    # Create allocation record
+                    allocation = EPVAllocation(
+                        epv_id=new_epv.id,
+                        cost_center_id=allocation_cost_center.id,
+                        cost_center_name=allocation_cost_center.costcenter,
+                        allocated_amount=float(allocation_amounts[i]),
+                        description=f'Split allocation for {allocation_cost_center.costcenter}',
+                        expense_head=expense_head,  # Add expense head to allocation
+                        approver_email=allocation_approvers[i] if i < len(allocation_approvers) else '',
+                        token=str(uuid.uuid4())  # Generate unique token for approval
+                    )
+                    db.session.add(allocation)
+
+                    # Create approval record for this allocation
+                    approval = EPVApproval(
+                        epv_id=new_epv.id,
+                        allocation_id=None,  # Will be set after allocation is saved
+                        approver_email=allocation_approvers[i] if i < len(allocation_approvers) else '',
+                        status='pending',
+                        token=str(uuid.uuid4())  # Generate unique token for approval
+                    )
+                    db.session.add(approval)
+
+        # Commit all database changes
+        db.session.commit()
+        print(f"DEBUG: Split invoice saved to database with EPV ID: {epv_id}")
+
+        # Step 4: Send approval emails to all approvers
+        from smtp_email_utils import send_split_allocation_approval_email
+
+        # Get all allocation records from the database
+        allocations = EPVAllocation.query.filter_by(epv_id=new_epv.id).all()
+        print(f"DEBUG: Found {len(allocations)} allocations for EPV {epv_id}")
+
+        # Get base URL for approval links
+        base_url = request.url_root.rstrip('/')
+        print(f"DEBUG: Base URL for approval links: {base_url}")
+
+        # Send individual approval emails for each allocation
+        sent_emails = 0
+        for allocation in allocations:
+            try:
+                print(f"DEBUG: Sending approval email to {allocation.approver_email} for allocation {allocation.cost_center_name}")
+
+                # Send email using the proper split allocation approval email function
+                email_sent, message = send_split_allocation_approval_email(
+                    epv_record=new_epv,
+                    allocation=allocation,
+                    base_url=base_url
+                )
+
+                if email_sent:
+                    sent_emails += 1
+                    print(f"DEBUG: Approval email sent successfully to {allocation.approver_email}")
+                else:
+                    print(f"DEBUG: Failed to send approval email to {allocation.approver_email}: {message}")
+
+            except Exception as e:
+                print(f"ERROR: Failed to send email to {allocation.approver_email}: {str(e)}")
+
+        print(f"DEBUG: Sent {sent_emails} out of {len(allocations)} approval emails")
+
+        # Return success response
+        success_message = f'Split invoice submitted successfully! Approval emails sent to {sent_emails} out of {len(allocations)} approvers.'
+        if sent_emails < len(allocations):
+            success_message += ' Some emails may have failed to send.'
+
+        return jsonify({
+            'success': True,
+            'message': success_message,
+            'epv_id': epv_id,
+            'drive_file_url': file_url
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERROR: Split invoice submission failed: {str(e)}")
+        import traceback
+        print(f"DEBUG: Split invoice error traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'message': 'Error submitting split invoice.',
+            'error': str(e)
+        }), 500
+
 # Add a route for the new expense form
 @app.route('/new-expense', methods=['GET', 'POST'])
 def new_expense():
@@ -1856,7 +2188,15 @@ def new_expense():
     # Handle form submission
     if request.method == 'POST':
         try:
-            # Process the expense form data
+            # Check if this is a split invoice
+            invoice_type = request.form.get('invoice_type', 'standard')
+            print(f"DEBUG: Invoice type: {invoice_type}")
+
+            if invoice_type == 'split':
+                # Handle split invoice processing
+                return handle_split_invoice_submission(request, session, user_info)
+
+            # Process the standard expense form data
 
             # Get form data
             employee_name = request.form.get('employee_name')  # Changed from 'employeeName' to match the form field name
@@ -2123,7 +2463,11 @@ def new_expense():
                     if result.get('drive_file_id') and result.get('drive_file_url'):
                         file_id = result['drive_file_id']
                         file_url = result['drive_file_url']
+                        # Store drive file information in session for split invoices
+                        session['drive_file_id'] = file_id
+                        session['drive_file_url'] = file_url
                         print(f"File uploaded to Google Drive: {file_url}")
+                        print(f"DEBUG: Stored drive file info in session - ID: {file_id}, URL: {file_url}")
                     else:
                         # If Drive upload failed, return error
                         drive_error = result.get('drive_error') or "Failed to upload to Google Drive."
@@ -2154,7 +2498,11 @@ def new_expense():
 
                         if file_id and file_id != 'local_file':
                             file_url = get_file_url(file_id)
+                            # Store drive file information in session for split invoices
+                            session['drive_file_id'] = file_id
+                            session['drive_file_url'] = file_url
                             print(f"Expense document uploaded to Google Drive: {file_url}")
+                            print(f"DEBUG: Stored drive file info in session - ID: {file_id}, URL: {file_url}")
                         else:
                             return jsonify({
                                 'success': False,
@@ -2277,8 +2625,9 @@ def new_expense():
                            employees=employees,
                            expense_heads=expense_heads)
 
-@app.route('/split-invoice-allocation', methods=['GET', 'POST'])
-def split_invoice_allocation():
+# DISABLED: Old split invoice allocation route - functionality moved to main expense form
+# @app.route('/split-invoice-allocation', methods=['GET', 'POST'])
+def split_invoice_allocation_disabled():
     # Check if user is logged in
     user_info = session.get('user_info')
     if not user_info:
@@ -2615,6 +2964,7 @@ def split_invoice_allocation():
                                     try:
                                         token_info = session['google_token']
                                         # Create credentials object
+                                        import os
                                         credentials = Credentials(
                                             token=token_info.get('access_token'),
                                             refresh_token=token_info.get('refresh_token'),
@@ -2670,6 +3020,611 @@ def split_invoice_allocation():
 
     # GET request - render the allocation form
     return render_template('split_invoice_allocation.html')
+
+# NEW SPLIT INVOICE LOGIC - Single EPV with Multiple Approvers
+# DISABLED: Split invoice functionality is fully integrated in the main expense form
+# @app.route('/new-split-invoice', methods=['GET', 'POST'])
+def new_split_invoice_disabled():
+    # Redirect to main expense form since split invoice is integrated there
+    return redirect(url_for('new_expense'))
+    # Check if user is logged in
+    user_info = session.get('user_info')
+    if not user_info:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        try:
+            print("DEBUG: Processing split invoice form submission")
+            print(f"DEBUG: Form data keys: {list(request.form.keys())}")
+
+            # Get form data
+            master_invoice_amount = float(request.form.get('master_invoice_amount', 0))
+            master_invoice_date = datetime.strptime(request.form.get('master_invoice_date'), '%Y-%m-%d').date()
+            master_invoice_description = request.form.get('master_invoice_description', '')
+            master_cost_center_id = request.form.get('master_cost_center')
+            from_date = datetime.strptime(request.form.get('from_date'), '%Y-%m-%d').date()
+            to_date = datetime.strptime(request.form.get('to_date'), '%Y-%m-%d').date()
+
+            print(f"DEBUG: Master invoice amount: {master_invoice_amount}")
+            print(f"DEBUG: Master cost center ID: {master_cost_center_id}")
+
+            # Validate master cost center
+            if not master_cost_center_id:
+                flash('Please select a primary cost center.', 'error')
+                return redirect(request.url)
+
+            # Get the master cost center details
+            master_cost_center = CostCenter.query.get(master_cost_center_id)
+            if not master_cost_center:
+                flash('Invalid primary cost center selected.', 'error')
+                return redirect(request.url)
+
+            # Handle file processing for split invoices
+            file_url = None
+            file_id = None
+
+            print("DEBUG: Starting file processing for split invoice")
+
+            # Process files directly in split invoice form
+            if 'receipt_file' in request.files:
+                files = request.files.getlist('receipt_file')
+                print(f"DEBUG: Found {len(files)} files in request")
+
+                # Filter out empty files
+                valid_files = [f for f in files if f and f.filename]
+                print(f"DEBUG: Found {len(valid_files)} valid files")
+
+                if valid_files:
+                    try:
+                        # Get user session data for file processing
+                        employee_name = user_info.get('name', '')
+                        employee_id = session.get('employee_id', '')
+
+                        # First, collect allocation data for PDF generation
+                        allocation_data = []
+                        allocation_index = 0
+
+                        # Process each allocation to collect data for PDF
+                        while True:
+                            cost_center_id = request.form.get(f'allocations[{allocation_index}][cost_center_id]')
+                            cost_center_name = request.form.get(f'allocations[{allocation_index}][cost_center_name]')
+                            allocation_amount = request.form.get(f'allocations[{allocation_index}][amount]')
+                            allocation_description = request.form.get(f'allocations[{allocation_index}][description]', '')
+                            approver_email = request.form.get(f'allocations[{allocation_index}][approver_email]')
+                            expense_head = request.form.get(f'allocations[{allocation_index}][expense_head]', '')
+
+                            if not cost_center_id or not allocation_amount or not approver_email:
+                                break
+
+                            try:
+                                allocation_amount_float = float(allocation_amount)
+                                if allocation_amount_float > 0:
+                                    # Get cost center details
+                                    cost_center = CostCenter.query.get(int(cost_center_id))
+                                    if cost_center:
+                                        # Get approver name
+                                        approver_name = approver_email
+                                        approver = EmployeeDetails.query.filter_by(email=approver_email).first()
+                                        if approver and approver.name:
+                                            approver_name = approver.name
+
+                                        allocation_data.append({
+                                            'cost_center': cost_center.costcenter,
+                                            'amount': allocation_amount_float,
+                                            'expense_head': expense_head or 'General',
+                                            'approver': approver_name,
+                                            'description': allocation_description
+                                        })
+                            except (ValueError, TypeError):
+                                pass
+
+                            allocation_index += 1
+
+                        # Generate expense data structure for PDF generation including split details
+                        expense_data = {
+                            'employee_id': employee_id,
+                            'employee_name': employee_name,
+                            'from_date': from_date.strftime('%Y-%m-%d'),
+                            'to_date': to_date.strftime('%Y-%m-%d'),
+                            'cost_center': master_cost_center.costcenter,
+                            'expense_type': 'Split Invoice',
+                            'epv_id': f"EPV-{datetime.now().strftime('%Y%m%d')}-{generate_cost_center_code(master_cost_center.costcenter)}-{uuid.uuid4().hex[:10].upper()}",
+                            'total_amount': f"{master_invoice_amount:.2f}",
+                            'amount_in_words': master_invoice_description,
+                            'is_split_invoice': True,  # Flag to indicate this is a split invoice
+                            'split_allocations': allocation_data,  # Include allocation details
+                            'expenses': [{
+                                'invoice_date': master_invoice_date.strftime('%Y-%m-%d'),
+                                'expense_head': 'Split Invoice',
+                                'amount': f"{master_invoice_amount:.2f}",
+                                'description': master_invoice_description,
+                                'split_invoice': True
+                            }]
+                        }
+
+                        print(f"DEBUG: Expense data for PDF generation:")
+                        print(f"DEBUG: is_split_invoice = {expense_data.get('is_split_invoice')}")
+                        print(f"DEBUG: split_allocations = {expense_data.get('split_allocations')}")
+                        print(f"DEBUG: Number of allocations = {len(allocation_data)}")
+                        for i, alloc in enumerate(allocation_data):
+                            print(f"DEBUG: Allocation {i+1}: {alloc}")
+
+                        # Step 1: Generate expense document PDF
+                        from pdf_converter import generate_expense_document
+                        expense_pdf_path = generate_expense_document(expense_data)
+
+                        if not expense_pdf_path:
+                            flash('Failed to generate expense document', 'error')
+                            return redirect(request.url)
+
+                        # Step 2: Process the uploaded files and merge with expense document
+                        # Use the SAME process_files function as standard invoices
+                        result = process_files(
+                            files=valid_files,
+                            drive_folder_id=master_cost_center.drive_id,
+                            employee_name=employee_name,
+                            cost_center_name=master_cost_center.costcenter,
+                            expense_pdf_path=expense_pdf_path
+                        )
+
+                        # Check if file processing was successful
+                        if not result['success']:
+                            error_msg = result.get('error') or "Failed to process files."
+                            user_msg = result.get('user_message') or "There was an issue with the file processing."
+                            flash(user_msg, 'error')
+                            return redirect(request.url)
+
+                        # Get the processed file information
+                        if result.get('drive_file_id') and result.get('drive_file_url'):
+                            file_id = result['drive_file_id']
+                            file_url = result['drive_file_url']
+                            print(f"DEBUG: Split invoice file processed and uploaded to Google Drive: {file_url}")
+                        else:
+                            # If Drive upload failed, return error
+                            drive_error = result.get('drive_error') or "Failed to upload to Google Drive."
+                            flash("File processing completed but Google Drive upload failed.", 'error')
+                            return redirect(request.url)
+
+                    except Exception as e:
+                        print(f"Error processing split invoice file: {str(e)}")
+                        import traceback
+                        print(f"DEBUG: File processing error traceback: {traceback.format_exc()}")
+                        flash('Error processing file.', 'error')
+                        return redirect(request.url)
+                else:
+                    print("DEBUG: No valid files uploaded with split invoice")
+                    flash('Please upload a receipt file.', 'error')
+                    return redirect(request.url)
+            else:
+                print("DEBUG: No receipt_file field in request")
+                flash('Please upload a receipt file.', 'error')
+                return redirect(request.url)
+
+            # NEW LOGIC: Create single EPV with multiple allocations
+            # Generate distinctive EPV ID for split invoice using primary cost center
+            epv_id = f"EPV-{datetime.now().strftime('%Y%m%d')}-{generate_cost_center_code(master_cost_center.costcenter)}-{uuid.uuid4().hex[:10].upper()}"
+
+            # Convert amount to words
+            from utils import number_to_words
+            amount_in_words_text = number_to_words(master_invoice_amount)
+
+            if not amount_in_words_text:
+                amount_in_words_text = f"Rupees {master_invoice_amount:.2f} only"
+
+            # Create the single split invoice EPV record
+            split_epv = EPV(
+                epv_id=epv_id,
+                email_id=session.get('email', ''),
+                employee_name=user_info.get('name', ''),
+                employee_id=session.get('employee_id', ''),
+                from_date=from_date,
+                to_date=to_date,
+                payment_to='Vendor',
+                submission_date=datetime.now(),
+                academic_year=f"{datetime.now().year}-{datetime.now().year + 1}",
+                total_amount=master_invoice_amount,
+                amount_in_words=amount_in_words_text,
+                status='pending_approval',
+                file_url=file_url,
+                drive_file_id=file_id,
+                invoice_type='split',  # New invoice type for split invoices
+                pending_amount=master_invoice_amount,  # Initially all amount is pending
+                approved_amount=0.0,
+                rejected_amount=0.0,
+                cost_center_id=master_cost_center.id,  # Use the selected master cost center
+                cost_center_name=master_cost_center.costcenter,  # Use the master cost center name
+                city=master_cost_center.city  # Set city from master cost center
+            )
+
+            print(f"DEBUG: Created split invoice with EPV ID {epv_id}")
+
+            db.session.add(split_epv)
+            db.session.flush()  # Get the ID without committing
+
+            # Add main expense item
+            main_item = EPVItem(
+                epv_id=split_epv.id,
+                expense_invoice_date=master_invoice_date,
+                expense_head='Split Invoice',
+                description=master_invoice_description,
+                amount=master_invoice_amount,
+                gst=0.0
+            )
+            db.session.add(main_item)
+
+            # Process allocations and create EPVAllocation records
+            allocation_index = 0
+            total_allocations = 0
+
+            # Debug: Print all form data
+            print("DEBUG: Form data:")
+            for key, value in request.form.items():
+                print(f"DEBUG: {key} = {value}")
+
+            # Process each allocation
+            while True:
+                cost_center_id = request.form.get(f'allocations[{allocation_index}][cost_center_id]')
+                cost_center_name = request.form.get(f'allocations[{allocation_index}][cost_center_name]')
+                allocation_amount = request.form.get(f'allocations[{allocation_index}][amount]')
+                allocation_description = request.form.get(f'allocations[{allocation_index}][description]', '')
+                approver_email = request.form.get(f'allocations[{allocation_index}][approver_email]')
+                expense_head = request.form.get(f'allocations[{allocation_index}][expense_head]', '')
+
+                print(f"DEBUG: Processing allocation {allocation_index}: cost_center_id={cost_center_id}, amount={allocation_amount}, approver={approver_email}, expense_head={expense_head}")
+
+                if not cost_center_id or not allocation_amount or not approver_email:
+                    print(f"DEBUG: No more allocations found at index {allocation_index}")
+                    break
+
+                try:
+                    cost_center_id = int(cost_center_id)
+                    allocation_amount = float(allocation_amount)
+                except (ValueError, TypeError):
+                    print(f"DEBUG: Invalid data for allocation {allocation_index}")
+                    allocation_index += 1
+                    continue
+
+                # Get the cost center
+                cost_center = CostCenter.query.get(cost_center_id)
+                if not cost_center:
+                    print(f"DEBUG: Cost center not found for ID {cost_center_id}")
+                    allocation_index += 1
+                    continue
+
+                if allocation_amount > 0:
+                    # Generate a unique token for this allocation approval
+                    token = str(uuid.uuid4())
+
+                    # Get approver name from employee_details
+                    approver_name = None
+                    approver = EmployeeDetails.query.filter_by(email=approver_email).first()
+                    if approver:
+                        approver_name = approver.name
+
+                    # Create EPVAllocation record
+                    allocation = EPVAllocation(
+                        epv_id=split_epv.id,
+                        cost_center_id=cost_center_id,
+                        cost_center_name=cost_center.costcenter,
+                        allocated_amount=allocation_amount,
+                        description=allocation_description,
+                        expense_head=expense_head,  # Add expense head to allocation
+                        approver_email=approver_email,
+                        approver_name=approver_name,
+                        status='pending',
+                        token=token
+                    )
+                    db.session.add(allocation)
+                    db.session.flush()  # Get the allocation ID
+
+                    # Create EPVApproval record linked to this allocation
+                    approval = EPVApproval(
+                        epv_id=split_epv.id,
+                        allocation_id=allocation.id,  # Link to the specific allocation
+                        approver_email=approver_email,
+                        approver_name=approver_name,
+                        status='pending',
+                        token=token
+                    )
+                    db.session.add(approval)
+
+                    total_allocations += 1
+                    print(f"DEBUG: Created allocation {allocation_index} for cost center {cost_center.costcenter} with amount {allocation_amount}")
+
+                allocation_index += 1
+
+            # Commit all changes
+            db.session.commit()
+            print(f"DEBUG: Successfully committed split invoice {split_epv.epv_id} to database")
+
+            # Send approval emails for each allocation
+            sent_emails = 0
+            allocations = EPVAllocation.query.filter_by(epv_id=split_epv.id).all()
+            print(f"DEBUG: Found {len(allocations)} allocations for split invoice {split_epv.epv_id}")
+
+            # Debug: Print allocation details
+            for i, allocation in enumerate(allocations):
+                print(f"DEBUG: Allocation {i+1}: Cost Center={allocation.cost_center_name}, Amount=₹{allocation.allocated_amount}, Approver={allocation.approver_email}, Token={allocation.token}")
+
+            # Debug: Check SMTP configuration
+            import os
+            smtp_username = os.environ.get('SMTP_USERNAME')
+            smtp_password = os.environ.get('SMTP_PASSWORD')
+            smtp_server = os.environ.get('SMTP_SERVER')
+            smtp_port = os.environ.get('SMTP_PORT')
+            print(f"DEBUG: SMTP Configuration:")
+            print(f"  Username: {smtp_username}")
+            print(f"  Password configured: {'Yes' if smtp_password else 'No'}")
+            print(f"  Server: {smtp_server}")
+            print(f"  Port: {smtp_port}")
+
+            if not smtp_username or not smtp_password:
+                print("ERROR: SMTP credentials not configured!")
+                flash('Split invoice created but emails could not be sent - SMTP not configured', 'warning')
+                return redirect(url_for('epv_records'))
+
+            print(f"DEBUG: Starting email sending process for {len(allocations)} allocations...")
+
+            for allocation in allocations:
+                try:
+                    print(f"DEBUG: About to send email to {allocation.approver_email}")
+                    # Send approval email using SMTP
+                    from smtp_email_utils import send_split_allocation_approval_email
+                    base_url = request.url_root.rstrip('/')
+                    print(f"DEBUG: Base URL: {base_url}")
+                    success, message_id = send_split_allocation_approval_email(
+                        split_epv,
+                        allocation,
+                        base_url
+                    )
+                    print(f"DEBUG: Email send result: success={success}, message_id={message_id}")
+
+                    if success:
+                        sent_emails += 1
+                        print(f"DEBUG: Successfully sent approval email to {allocation.approver_email} for allocation {allocation.cost_center_name}")
+                    else:
+                        print(f"DEBUG: Failed to send approval email to {allocation.approver_email}: {message_id}")
+
+                except Exception as e:
+                    print(f"❌ ERROR sending email to {allocation.approver_email}: {str(e)}")
+                    import traceback
+                    print(f"Full traceback: {traceback.format_exc()}")
+
+            print(f"DEBUG: Sent {sent_emails} out of {total_allocations} approval emails")
+
+            # Create success message with email sending details
+            if sent_emails == total_allocations:
+                flash(f'Split invoice created successfully! Approval emails sent to all {sent_emails} approvers.', 'success')
+            elif sent_emails > 0:
+                flash(f'Split invoice created successfully! {sent_emails} out of {total_allocations} approval emails were sent.', 'success')
+            else:
+                flash('Split invoice created successfully, but there was an issue sending approval emails. Please contact the approvers directly.', 'warning')
+
+            # Redirect to the EPV records page
+            return redirect(url_for('epv_records'))
+
+        except Exception as e:
+            db.session.rollback()
+            import traceback
+            print(f"ERROR: Exception in split invoice processing: {str(e)}")
+            print(f"ERROR: Exception type: {type(e)}")
+            print(f"ERROR: Full traceback: {traceback.format_exc()}")
+            flash(f"Error creating split invoice: {str(e)}", 'error')
+            return redirect(request.url)
+
+    # GET request - render the allocation form
+    # Get user session data
+    employee_role = session.get('employee_role', '')
+    employee_manager = session.get('employee_manager', '')
+    employee_id = session.get('employee_id', '')
+
+    # Check if we have master invoice data from the main expense form
+    # Note: The data is stored in sessionStorage on client-side, not server-side session
+    # We'll handle this in the template with JavaScript
+    master_data = None
+
+    return render_template('new_split_invoice.html',
+                          user=user_info,
+                          employee_role=employee_role,
+                          employee_manager=employee_manager,
+                          employee_id=employee_id,
+                          master_data=master_data)
+
+# NEW SPLIT INVOICE APPROVAL ROUTES
+@app.route('/approve-split-allocation/<token>')
+def approve_split_allocation(token):
+    """Approve a specific allocation in a split invoice"""
+    try:
+        # Find the allocation by token
+        allocation = EPVAllocation.query.filter_by(token=token).first()
+        if not allocation:
+            return render_template('error.html', error="Invalid approval link"), 404
+
+        # Check if already processed
+        if allocation.status != 'pending':
+            return render_template('split_approval_result.html',
+                                  result="already_processed",
+                                  epv=allocation.epv,
+                                  allocation=allocation,
+                                  message=f"This allocation has already been {allocation.status}.")
+
+        # Update allocation status
+        allocation.status = 'approved'
+        allocation.action_date = datetime.now()
+
+        # Update the corresponding EPVApproval record
+        approval = EPVApproval.query.filter_by(allocation_id=allocation.id).first()
+        if approval:
+            approval.status = 'approved'
+            approval.action_date = datetime.now()
+
+        # Calculate new amounts for the EPV
+        epv = allocation.epv
+        update_split_epv_amounts(epv)
+
+        # Check if we should send to finance
+        check_and_send_split_to_finance(epv)
+
+        db.session.commit()
+
+        return render_template('split_approval_result.html',
+                              result="approved",
+                              epv=epv,
+                              allocation=allocation,
+                              message=f"Allocation for {allocation.cost_center_name} (₹{allocation.allocated_amount:,.2f}) has been approved successfully.")
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error approving split allocation: {str(e)}")
+        return render_template('error.html', error=f"An error occurred: {str(e)}"), 500
+
+@app.route('/reject-split-allocation/<token>')
+def reject_split_allocation(token):
+    """Show rejection form for a specific allocation in a split invoice"""
+    try:
+        # Find the allocation by token
+        allocation = EPVAllocation.query.filter_by(token=token).first()
+        if not allocation:
+            return render_template('error.html', error="Invalid rejection link"), 404
+
+        # Check if already processed
+        if allocation.status != 'pending':
+            return render_template('split_approval_result.html',
+                                  result="already_processed",
+                                  epv=allocation.epv,
+                                  allocation=allocation,
+                                  message=f"This allocation has already been {allocation.status}.")
+
+        return render_template('split_allocation_rejection.html',
+                              allocation=allocation,
+                              epv=allocation.epv,
+                              token=token)
+
+    except Exception as e:
+        print(f"Error showing rejection form: {str(e)}")
+        return render_template('error.html', error=f"An error occurred: {str(e)}"), 500
+
+@app.route('/process-split-allocation-rejection', methods=['POST'])
+def process_split_allocation_rejection():
+    """Process the rejection of a split allocation"""
+    try:
+        token = request.form.get('token')
+        rejection_reason = request.form.get('reason')
+
+        if not token or not rejection_reason:
+            flash('Token and rejection reason are required.', 'error')
+            return redirect(request.url)
+
+        # Find the allocation by token
+        allocation = EPVAllocation.query.filter_by(token=token).first()
+        if not allocation:
+            return render_template('error.html', error="Invalid rejection link"), 404
+
+        # Check if already processed
+        if allocation.status != 'pending':
+            return render_template('split_approval_result.html',
+                                  result="already_processed",
+                                  epv=allocation.epv,
+                                  allocation=allocation,
+                                  message=f"This allocation has already been {allocation.status}.")
+
+        # Update allocation status
+        allocation.status = 'rejected'
+        allocation.action_date = datetime.now()
+        allocation.rejection_reason = rejection_reason
+
+        # Update the corresponding EPVApproval record
+        approval = EPVApproval.query.filter_by(allocation_id=allocation.id).first()
+        if approval:
+            approval.status = 'rejected'
+            approval.action_date = datetime.now()
+            approval.comments = rejection_reason
+
+        # Calculate new amounts for the EPV
+        epv = allocation.epv
+        update_split_epv_amounts(epv)
+
+        # Send rejection notification to the submitter
+        try:
+            from smtp_email_utils import send_split_allocation_rejection_notification
+            send_split_allocation_rejection_notification(epv, allocation, rejection_reason)
+        except Exception as e:
+            print(f"Error sending rejection notification: {str(e)}")
+
+        # Check if we should send to finance
+        check_and_send_split_to_finance(epv)
+
+        db.session.commit()
+
+        return render_template('split_approval_result.html',
+                              result="rejected",
+                              epv=epv,
+                              allocation=allocation,
+                              message=f"Allocation for {allocation.cost_center_name} (₹{allocation.allocated_amount:,.2f}) has been rejected.")
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error rejecting split allocation: {str(e)}")
+        return render_template('error.html', error=f"An error occurred: {str(e)}"), 500
+
+def update_split_epv_amounts(epv):
+    """Update the approved, rejected, and pending amounts for a split EPV"""
+    allocations = EPVAllocation.query.filter_by(epv_id=epv.id).all()
+
+    approved_amount = 0.0
+    rejected_amount = 0.0
+    pending_amount = 0.0
+
+    for allocation in allocations:
+        if allocation.status == 'approved':
+            approved_amount += allocation.allocated_amount
+        elif allocation.status == 'rejected':
+            rejected_amount += allocation.allocated_amount
+        else:  # pending
+            pending_amount += allocation.allocated_amount
+
+    epv.approved_amount = approved_amount
+    epv.rejected_amount = rejected_amount
+    epv.pending_amount = pending_amount
+
+    print(f"DEBUG: Updated EPV {epv.epv_id} amounts - Approved: ₹{approved_amount}, Rejected: ₹{rejected_amount}, Pending: ₹{pending_amount}")
+
+def check_and_send_split_to_finance(epv):
+    """Check if split EPV should be sent to finance and update status accordingly"""
+    allocations = EPVAllocation.query.filter_by(epv_id=epv.id).all()
+
+    # Check if any allocations are still pending
+    pending_count = sum(1 for allocation in allocations if allocation.status == 'pending')
+    approved_count = sum(1 for allocation in allocations if allocation.status == 'approved')
+    rejected_count = sum(1 for allocation in allocations if allocation.status == 'rejected')
+    total_count = len(allocations)
+
+    print(f"DEBUG: Split EPV {epv.epv_id} status - Pending: {pending_count}, Approved: {approved_count}, Rejected: {rejected_count}, Total: {total_count}")
+
+    # CORRECTED LOGIC:
+    # - 'partially_approved' only when NO pending allocations AND some approved + some rejected
+    # - 'approved' when NO pending allocations AND all approved
+    # - 'rejected' when NO pending allocations AND all rejected
+    # - 'pending_approval' when there are still pending allocations
+
+    if pending_count == 0:
+        # All allocations have been processed (no pending)
+        if approved_count > 0 and rejected_count > 0:
+            # Some approved, some rejected - this is partially approved
+            epv.status = 'partially_approved'
+            print(f"DEBUG: Split EPV {epv.epv_id} partially approved - Approved: {approved_count}, Rejected: {rejected_count}, Approved Amount: ₹{epv.approved_amount}")
+        elif approved_count > 0 and rejected_count == 0:
+            # All approved
+            epv.status = 'approved'
+            print(f"DEBUG: Split EPV {epv.epv_id} fully approved - All {approved_count} allocations approved")
+        elif approved_count == 0 and rejected_count > 0:
+            # All rejected
+            epv.status = 'rejected'
+            print(f"DEBUG: Split EPV {epv.epv_id} fully rejected - All {rejected_count} allocations rejected")
+    else:
+        # Still have pending allocations
+        epv.status = 'pending_approval'
+        print(f"DEBUG: Split EPV {epv.epv_id} still pending - Pending: {pending_count}, Approved: {approved_count}, Rejected: {rejected_count}")
 
 # Add an API endpoint to get employee details
 @app.route('/api/employees')
@@ -3212,6 +4167,83 @@ def get_expense_heads():
 
     return jsonify(expense_head_list)
 
+# Add an API endpoint to get vendor names
+@app.route('/api/vendors')
+def get_vendors():
+    # Get search term from request
+    search_term = request.args.get('term', '')
+
+    # Get distinct vendor names from finance_entry table
+    if search_term:
+        # Search for vendor names that contain the search term (case-insensitive)
+        vendors = db.session.query(FinanceEntry.vendor_name).filter(
+            FinanceEntry.vendor_name.ilike(f'%{search_term}%')
+        ).distinct().all()
+    else:
+        # Get all distinct vendor names
+        vendors = db.session.query(FinanceEntry.vendor_name).distinct().all()
+
+    # Convert to list and filter out None/empty values
+    vendor_list = []
+    for vendor in vendors:
+        if vendor[0] and vendor[0].strip():  # Check if vendor name exists and is not empty
+            vendor_list.append({
+                'value': vendor[0].strip(),
+                'label': vendor[0].strip()
+            })
+
+    # Sort alphabetically and remove duplicates
+    vendor_list = sorted(list({v['value']: v for v in vendor_list}.values()), key=lambda x: x['value'].lower())
+
+    print(f"API response for vendors '{search_term}': {len(vendor_list)} found")
+
+    return jsonify(vendor_list)
+
+# Add an API endpoint to get employee emails for approver selection
+@app.route('/api/employee-emails')
+def get_employee_emails():
+    # Get search term from request
+    search_term = request.args.get('term', '')
+
+    # If search term is provided, filter employees by name or email
+    if search_term:
+        # Search for employees whose name or email contains the search term (case-insensitive)
+        employees = EmployeeDetails.query.filter(
+            db.or_(
+                EmployeeDetails.name.ilike(f'%{search_term}%'),
+                EmployeeDetails.email.ilike(f'%{search_term}%')
+            ),
+            EmployeeDetails.is_active == True,
+            EmployeeDetails.email.isnot(None),
+            EmployeeDetails.email != ''
+        ).all()
+    else:
+        # Get all active employees with valid emails
+        employees = EmployeeDetails.query.filter(
+            EmployeeDetails.is_active == True,
+            EmployeeDetails.email.isnot(None),
+            EmployeeDetails.email != ''
+        ).all()
+
+    # Convert to JSON for autocomplete
+    employee_list = []
+    for emp in employees:
+        if emp.email and emp.email.strip():  # Ensure email exists and is not empty
+            employee_list.append({
+                'value': emp.email.strip(),
+                'label': f"{emp.name} ({emp.email})" if emp.name else emp.email,
+                'name': emp.name or '',
+                'email': emp.email.strip(),
+                'employee_id': emp.employee_id or ''
+            })
+
+    # Sort alphabetically by name
+    employee_list = sorted(employee_list, key=lambda x: x['name'].lower() if x['name'] else x['email'].lower())
+
+    print(f"API response for employee emails '{search_term}': {len(employee_list)} found")
+
+    return jsonify(employee_list)
+
 # Add a route to reset the database (for development only)
 @app.route('/reset-db')
 def reset_db():
@@ -3634,8 +4666,15 @@ def process_rejection(epv_id):
         epv.rejected_on = datetime.now()
         epv.rejection_reason = rejection_reason
 
-        # If any approver rejects, the entire EPV is rejected
-        epv.status = 'rejected'
+        # For split invoices, let check_and_send_split_to_finance handle the status
+        # For regular invoices, if any approver rejects, the entire EPV is rejected
+        if epv.invoice_type == 'split':
+            # For split invoices, update amounts and check if should send to finance
+            update_split_epv_amounts(epv)
+            check_and_send_split_to_finance(epv)
+        else:
+            # For regular invoices, if any approver rejects, the entire EPV is rejected
+            epv.status = 'rejected'
 
         # If this is a sub-invoice, update the master invoice status
         if epv.invoice_type == 'sub' and epv.master_invoice_id:
@@ -3843,14 +4882,26 @@ def view_epv_record(epv_id):
         from models import EPVApproval
         approvals = EPVApproval.query.filter_by(epv_id=epv.id).all()
 
-        # Check if the user is an approver with a valid token
+        # Check if the user is an approver for this EPV
         is_approver = False
         current_approval = None
+        split_allocation = None
 
         if token:
+            # Check for regular EPV approval
             current_approval = EPVApproval.query.filter_by(epv_id=epv.id, token=token).first()
             if current_approval:
                 is_approver = True
+
+            # Check for split invoice allocation approval (regardless of regular approval)
+            if epv.invoice_type == 'split':
+                from models import EPVAllocation
+                split_allocation = EPVAllocation.query.filter_by(token=token).first()
+                if split_allocation and split_allocation.epv_id == epv.id:
+                    is_approver = True
+
+        # Get all employee details for template
+        employee_details = EmployeeDetails.query.all()
 
         # Render the EPV record view
         return render_template('epv_record_view.html',
@@ -3859,11 +4910,80 @@ def view_epv_record(epv_id):
                               approvals=approvals,
                               is_approver=is_approver,
                               current_approval=current_approval,
-                              token=token)
+                              split_allocation=split_allocation,
+                              token=token,
+                              employee_details=employee_details)
 
     except Exception as e:
         print(f"Error viewing EPV record: {str(e)}")
         return render_template('error.html', error=f"An error occurred: {str(e)}"), 500
+
+# Function to calculate TAT (Turn Around Time) for EPV records
+def calculate_tat(record):
+    """
+    Calculate Turn Around Time (TAT) in days for an EPV record.
+
+    For split invoices: Date of Payment - Date when status changed to "Partially Approved"
+    For other invoices: Date of Payment - Date of Manager Approval
+
+    Returns None if TAT cannot be calculated (missing dates)
+    """
+    try:
+        # Get payment date from finance entry
+        payment_date = None
+        if record.finance_entry and record.finance_entry.payment_date:
+            payment_date = record.finance_entry.payment_date
+
+        if not payment_date:
+            return None
+
+        # Calculate start date based on invoice type
+        start_date = None
+
+        if record.invoice_type == 'split':
+            # For split invoices: find when status changed to "partially_approved"
+            # This would be when the first allocation was approved
+            if record.allocations:
+                # Find the earliest approval date among allocations
+                earliest_approval = None
+                for allocation in record.allocations:
+                    if allocation.status == 'approved' and allocation.action_date:
+                        if earliest_approval is None or allocation.action_date < earliest_approval:
+                            earliest_approval = allocation.action_date
+
+                if earliest_approval:
+                    start_date = earliest_approval
+        else:
+            # For regular invoices: use manager approval date
+            if record.approved_on:
+                start_date = record.approved_on
+
+        if not start_date:
+            return None
+
+        # Calculate the difference in days using only date parts (ignore time)
+        # Convert both dates to date objects to ensure we're only comparing dates, not times
+        try:
+            if hasattr(payment_date, 'date'):
+                payment_date_only = payment_date.date()
+            else:
+                payment_date_only = payment_date
+
+            if hasattr(start_date, 'date'):
+                start_date_only = start_date.date()
+            else:
+                start_date_only = start_date
+
+            delta = payment_date_only - start_date_only
+            # Add 1 to ensure same-day processing shows as 1 day (not 0)
+            return delta.days + 1
+        except Exception as e:
+            print(f"Error calculating date difference: {e}")
+            return None
+
+    except Exception as e:
+        print(f"Error calculating TAT for EPV {record.epv_id}: {str(e)}")
+        return None
 
 # Route to view all EPV records
 @app.route('/epv-records')
@@ -3932,7 +5052,7 @@ def epv_records():
     # Base query for EPV records
     if role == 'Super Admin':
         # Super admins can see all records
-        base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices))
+        base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations))
     elif role in ['Finance', 'Finance Approver'] and view_mode != 'my_expenses':
         # Finance users see records based on their assigned cities
         if role == 'Finance':
@@ -3949,7 +5069,7 @@ def epv_records():
                     assigned_cost_center_ids = [cc_id[0] for cc_id in assigned_cost_center_ids]
 
                     # Base query for EPVs in assigned cost centers
-                    base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).filter(EPV.cost_center_id.in_(assigned_cost_center_ids))
+                    base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations)).filter(EPV.cost_center_id.in_(assigned_cost_center_ids))
 
                     # If city filter is applied, filter by that specific city
                     if city_filter and city_filter in assigned_cities:
@@ -3957,16 +5077,16 @@ def epv_records():
                         city_cost_center_ids = [cc_id[0] for cc_id in city_cost_center_ids]
 
                         if city_cost_center_ids:
-                            base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).filter(EPV.cost_center_id.in_(city_cost_center_ids))
+                            base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations)).filter(EPV.cost_center_id.in_(city_cost_center_ids))
                 else:
                     # If no cities assigned, show no EPVs
-                    base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).filter(EPV.id == -1)  # This will return no results
+                    base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations)).filter(EPV.id == -1)  # This will return no results
             else:
                 # If employee not found, show no EPVs
-                base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).filter(EPV.id == -1)  # This will return no results
+                base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations)).filter(EPV.id == -1)  # This will return no results
         else:
             # Finance Approver can see all records by default
-            base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices))
+            base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations))
 
             # Apply city filter if provided
             if city_filter:
@@ -3979,7 +5099,7 @@ def epv_records():
                     base_query = base_query.filter(EPV.cost_center_id.in_(city_cost_center_ids))
     else:
         # Regular users, admins, and finance users in 'my_expenses' view can only see their own records
-        base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).filter_by(email_id=user_email)
+        base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations)).filter_by(email_id=user_email)
 
     # Apply filters
     if expense_head_filter:
@@ -4006,9 +5126,10 @@ def epv_records():
     # Get the filtered records
     records = base_query.order_by(EPV.submission_date.desc()).all()
 
-    # Debug output
+    # Calculate TAT (Turn Around Time) for each record
     for record in records:
-        print(f"DEBUG: EPV ID: {record.epv_id}, Employee: {record.employee_name}, Email: {record.email_id}, Status: {record.status}, Type: {record.invoice_type}")
+        record.tat_days = calculate_tat(record)
+        print(f"DEBUG: EPV ID: {record.epv_id}, Employee: {record.employee_name}, Email: {record.email_id}, Status: {record.status}, Type: {record.invoice_type}, TAT: {record.tat_days}")
 
     # Calculate scorecard data
     total_records = len(records)
@@ -4163,8 +5284,7 @@ def cost_center_admin():
     expense_heads = ExpenseHead.query.filter_by(is_active=True).all()
 
     # Add debug logging
-    print(f"DEBUG: Cost Center Admin accessed by {user_email}")
-    print(f"DEBUG: Found {len(cost_centers)} cost centers for this approver")
+
 
     # Get filter values from request
     expense_head_filter = request.args.get('expense_head', '')
@@ -4195,7 +5315,21 @@ def cost_center_admin():
     cost_center_ids = [cc.id for cc in cost_centers]
 
     # Base query for EPV records - filter by the cost centers the user administers
-    base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).filter(EPV.cost_center_id.in_(cost_center_ids))
+    # For split invoices, we need to check allocations; for others, check primary cost center
+    base_query = EPV.query.options(db.joinedload(EPV.finance_entry)).options(db.joinedload(EPV.sub_invoices)).options(db.joinedload(EPV.allocations)).filter(
+        db.or_(
+            # Standard/master/sub invoices: check primary cost center
+            db.and_(
+                EPV.invoice_type.in_(['standard', 'master', 'sub']),
+                EPV.cost_center_id.in_(cost_center_ids)
+            ),
+            # Split invoices: check if any allocation belongs to user's cost centers
+            db.and_(
+                EPV.invoice_type == 'split',
+                EPV.allocations.any(EPVAllocation.cost_center_id.in_(cost_center_ids))
+            )
+        )
+    )
 
     # Apply additional filters
     if expense_head_filter:
@@ -4215,11 +5349,47 @@ def cost_center_admin():
     # Get the filtered records
     records = base_query.order_by(EPV.submission_date.desc()).all()
 
+
+
     # Calculate scorecard data
     total_records = len(records)
-    pending_count = sum(1 for record in records if record.status in ['submitted', 'pending_approval'])
-    approved_count = sum(1 for record in records if record.status == 'approved')
-    rejected_count = sum(1 for record in records if record.status == 'rejected')
+    pending_count = 0
+    approved_count = 0
+    rejected_count = 0
+
+    # Count based on user's specific allocation status for split invoices
+    for record in records:
+        if record.invoice_type == 'split':
+            # For split invoices, count based on user's allocation status
+            user_allocation = None
+            for allocation in record.allocations:
+                if allocation.approver_email == user_email:
+                    user_allocation = allocation
+                    break
+
+            if user_allocation:
+                if user_allocation.status == 'pending':
+                    pending_count += 1
+                elif user_allocation.status == 'approved':
+                    approved_count += 1
+                elif user_allocation.status == 'rejected':
+                    rejected_count += 1
+            else:
+                # Fallback to overall status if no user allocation found
+                if record.status in ['submitted', 'pending_approval']:
+                    pending_count += 1
+                elif record.status in ['approved', 'partially_approved']:
+                    approved_count += 1
+                elif record.status == 'rejected':
+                    rejected_count += 1
+        else:
+            # For standard invoices, use overall status
+            if record.status in ['submitted', 'pending_approval']:
+                pending_count += 1
+            elif record.status in ['approved', 'partially_approved']:
+                approved_count += 1
+            elif record.status == 'rejected':
+                rejected_count += 1
 
     # Calculate total amount
     total_amount = sum(record.total_amount for record in records if record.total_amount)
@@ -4523,8 +5693,36 @@ def finance_dashboard():
 
         master_epvs = master_invoices_query.all()
 
-        # Combine the results - include both standard and master invoices
-        pending_epvs = standard_epvs + master_epvs
+        # Get ALL split invoices that are partially approved and have pending/null finance status
+        # Split invoices with partially_approved status should be processed by finance
+        split_invoices_query = EPV.query.filter(
+            EPV.invoice_type == 'split',
+            EPV.status.in_(['approved', 'partially_approved']),  # Include both approved and partially_approved
+            (EPV.finance_status == None) | (EPV.finance_status == 'pending')
+        )
+
+        split_epvs = split_invoices_query.all()
+
+        # Filter split invoices by city if the user has assigned cities
+        split_epvs_filtered = []
+        if city_names:
+            for invoice in split_epvs:
+                # If the EPV has a city field, only show it if the finance person is assigned to that exact city
+                if invoice.city:
+                    if invoice.city in city_names:
+                        split_epvs_filtered.append(invoice)
+                # If EPV doesn't have a city, fall back to the cost center's city
+                elif invoice.cost_center and invoice.cost_center.city in city_names:
+                    split_epvs_filtered.append(invoice)
+                # Also include invoices that don't have a city or cost center
+                elif not invoice.city and not invoice.cost_center:
+                    split_epvs_filtered.append(invoice)
+        else:
+            # If the user has no assigned cities, show all split invoices
+            split_epvs_filtered = split_epvs
+
+        # Combine the results - include standard, master, and split invoices
+        pending_epvs = standard_epvs + master_epvs + split_epvs_filtered
         resubmitted_epvs = resubmitted_epvs_filtered
         rejected_epvs = rejected_epvs_filtered
         pending_payment_epvs = pending_payment_epvs_filtered
@@ -4674,14 +5872,14 @@ def finance_dashboard_content():
                     # Count the current number of pending EPVs
                     # Only count expenses with direct city match to assigned cities
                     direct_city_count = EPV.query.filter(
-                        EPV.status == 'approved',
+                        EPV.status.in_(['approved', 'partially_approved']),  # Include both approved and partially_approved
                         EPV.city.in_(city_names),
                         db.or_(EPV.finance_status == 'pending', EPV.finance_status == None)
                     ).count()
 
                     # Then count expenses without city but with cost center city match
                     cost_center_city_count = EPV.query.join(CostCenter).filter(
-                        EPV.status == 'approved',
+                        EPV.status.in_(['approved', 'partially_approved']),  # Include both approved and partially_approved
                         EPV.city == None,  # Only count expenses without a direct city
                         CostCenter.city.in_(city_names),
                         db.or_(EPV.finance_status == 'pending', EPV.finance_status == None)
@@ -4696,7 +5894,7 @@ def finance_dashboard_content():
                     else:
                         # Check if any EPV's processing status has changed
                         recent_updates = EPV.query.outerjoin(CostCenter).filter(
-                            EPV.status == 'approved',
+                            EPV.status.in_(['approved', 'partially_approved']),  # Include both approved and partially_approved
                             db.or_(
                                 EPV.city.in_(city_names),
                                 CostCenter.city.in_(city_names)
@@ -4715,7 +5913,7 @@ def finance_dashboard_content():
                 if city_names:
                     # Count the current number of resubmitted EPVs
                     current_count = EPV.query.outerjoin(CostCenter).filter(
-                        EPV.status == 'approved',
+                        EPV.status.in_(['approved', 'partially_approved']),  # Include both approved and partially_approved
                         db.or_(
                             EPV.city.in_(city_names),
                             CostCenter.city.in_(city_names)
@@ -4726,7 +5924,7 @@ def finance_dashboard_content():
                 else:
                     # If no cities assigned, count all resubmitted EPVs
                     current_count = EPV.query.filter(
-                        EPV.status == 'approved',
+                        EPV.status.in_(['approved', 'partially_approved']),  # Include both approved and partially_approved
                         EPV.finance_status == 'pending',
                         EPV.document_status == 'documents_uploaded'
                     ).count()
@@ -4906,11 +6104,23 @@ def finance_entry(epv_id):
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('dashboard'))
 
-    # Get the EPV
-    epv = EPV.query.filter_by(epv_id=epv_id).first_or_404()
+    # Get the EPV with allocations for split invoices
+    epv = EPV.query.options(db.joinedload(EPV.allocations)).filter_by(epv_id=epv_id).first_or_404()
 
-    # Check if EPV is approved
-    if epv.status != 'approved':
+    # Debug: Print allocation details for split invoices
+    if epv.invoice_type == 'split':
+        print(f"DEBUG: Finance entry for split invoice {epv.epv_id}")
+        for allocation in epv.allocations:
+            print(f"DEBUG: Allocation - Cost Center: {allocation.cost_center_name}, Amount: ₹{allocation.allocated_amount}, Approver: {allocation.approver_email}, Status: {allocation.status}, Action Date: {allocation.action_date}, Rejection Reason: {allocation.rejection_reason}")
+
+        # Update the EPV amounts and status based on current allocation statuses
+        update_split_epv_amounts(epv)
+        check_and_send_split_to_finance(epv)
+        db.session.commit()
+        print(f"DEBUG: Updated EPV status to: {epv.status}")
+
+    # Check if EPV is approved or partially approved (for split invoices)
+    if epv.status not in ['approved', 'partially_approved']:
         flash('This expense has not been approved yet.', 'error')
         return redirect(url_for('finance_dashboard'))
 
@@ -5033,8 +6243,8 @@ def finance_approval(entry_id):
     # Get the finance entry
     entry = FinanceEntry.query.get_or_404(entry_id)
 
-    # Get the EPV and its cost center
-    epv = entry.epv
+    # Get the EPV with allocations for split invoices
+    epv = EPV.query.options(db.joinedload(EPV.allocations)).filter_by(id=entry.epv_id).first_or_404()
     cost_center = epv.cost_center
 
     # Check if finance approver is assigned to this city
@@ -5279,6 +6489,41 @@ if __name__ == '__main__':
     print(f"DEBUG: GOOGLE_CLIENT_ID: {os.environ.get('GOOGLE_CLIENT_ID')}")
     print(f"DEBUG: OAUTHLIB_INSECURE_TRANSPORT: {os.environ.get('OAUTHLIB_INSECURE_TRANSPORT')}")
 
+    # API endpoint to get allocation details for modal
+    @app.route('/api/epv/<epv_id>/allocations')
+    def get_epv_allocations(epv_id):
+        """API endpoint to get allocation details for a split invoice"""
+        try:
+            # Find the EPV record
+            epv = EPV.query.filter_by(epv_id=epv_id).first()
+            if not epv:
+                return jsonify({'success': False, 'error': 'EPV not found'}), 404
+
+            # Get allocations for this EPV
+            allocations = EPVAllocation.query.filter_by(epv_id=epv.id).all()
+
+            # Convert allocations to JSON-serializable format
+            allocation_data = []
+            for allocation in allocations:
+                allocation_dict = {
+                    'cost_center': allocation.cost_center_name,
+                    'amount': float(allocation.allocated_amount),
+                    'expense_head': allocation.expense_head or '-',
+                    'approver_email': allocation.approver_email,
+                    'status': allocation.status,
+                    'action_date': allocation.action_date.isoformat() if allocation.action_date else None
+                }
+                allocation_data.append(allocation_dict)
+
+            return jsonify({
+                'success': True,
+                'allocations': allocation_data
+            })
+
+        except Exception as e:
+            print(f"Error fetching allocation details: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     # Initialize the database
     with app.app_context():
         # Don't drop all tables to preserve EPV records
@@ -5317,6 +6562,8 @@ if __name__ == '__main__':
                 print("Adding city column to epv table")
                 db.session.execute(db.text("ALTER TABLE epv ADD COLUMN city VARCHAR(50) NULL"))
                 db.session.commit()
+
+
 
     # Only run the app when this file is executed directly, not when imported
     if __name__ == '__main__':
