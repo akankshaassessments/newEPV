@@ -568,10 +568,18 @@ def merge_pdfs(pdf_files):
         for pdf in pdf_files:
             if os.path.exists(pdf) and os.path.getsize(pdf) > 0:
                 try:
+                    print(f"Attempting to add {pdf} to merger...")
                     merger.append(pdf)
-                    print(f"Added {pdf} to merger")
+                    print(f"✅ Successfully added {pdf} to merger")
                 except Exception as e:
-                    print(f"Error adding {pdf} to merger: {str(e)}")
+                    print(f"❌ Error adding {pdf} to merger: {str(e)}")
+                    print(f"Error type: {type(e).__name__}")
+                    import traceback
+                    print(f"Traceback: {traceback.format_exc()}")
+                    # Continue with other files even if one fails
+                    continue
+            else:
+                print(f"⚠️ Skipping {pdf} - file doesn't exist or is empty")
 
         # Create a unique filename for the merged PDF
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

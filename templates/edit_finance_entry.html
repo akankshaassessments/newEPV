@@ -4,6 +4,27 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {% if category == 'error' %}
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% elif category == 'success' %}
+                        <i class="fas fa-check-circle me-2"></i>
+                    {% elif category == 'warning' %}
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle me-2"></i>
+                    {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -344,6 +365,63 @@ document.addEventListener('DOMContentLoaded', function() {
             totalAmountSpan.textContent = total.toFixed(2);
         }
     }
+
+    // Validate partial amounts function
+    function validatePartialAmounts() {
+        if (!partialPaymentCheckbox.checked) return true;
+
+        const totalAmount = parseFloat('{{ epv.total_amount }}');
+        const amount1 = parseFloat(document.getElementById('amount_1').value) || 0;
+        const amount2 = parseFloat(document.getElementById('amount_2').value) || 0;
+        const sum = amount1 + amount2;
+
+        if (amount1 > 0 || amount2 > 0) {
+            if (Math.abs(sum - totalAmount) > 0.01) { // Allow for small floating point differences
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Form submission validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (partialPaymentCheckbox.checked) {
+            // Validate amounts
+            if (!validatePartialAmounts()) {
+                e.preventDefault();
+                const amount1 = parseFloat(document.getElementById('amount_1').value) || 0;
+                const amount2 = parseFloat(document.getElementById('amount_2').value) || 0;
+                const sum = amount1 + amount2;
+                const totalAmount = parseFloat('{{ epv.total_amount }}');
+
+                alert(`Amount Mismatch!\n\nPayment 1: ₹${amount1.toFixed(2)}\nPayment 2: ₹${amount2.toFixed(2)}\nTotal: ₹${sum.toFixed(2)}\n\nExpected EPV Total: ₹${totalAmount.toFixed(2)}\n\nPlease ensure the sum of partial amounts equals the EPV total amount.`);
+                return false;
+            }
+
+            // Check if all required partial payment fields are filled
+            const requiredFields = [
+                {field: 'journal_entry_1', name: 'Journal Entry 1'},
+                {field: 'payment_voucher_1', name: 'Payment Voucher 1'},
+                {field: 'amount_1', name: 'Amount 1'},
+                {field: 'fcra_status_1', name: 'FCRA Status 1'},
+                {field: 'journal_entry_2', name: 'Journal Entry 2'},
+                {field: 'payment_voucher_2', name: 'Payment Voucher 2'},
+                {field: 'amount_2', name: 'Amount 2'},
+                {field: 'fcra_status_2', name: 'FCRA Status 2'}
+            ];
+
+            for (let i = 0; i < requiredFields.length; i++) {
+                const field = requiredFields[i];
+                const element = document.getElementById(field.field);
+                if (!element.value) {
+                    e.preventDefault();
+                    alert('Please fill in ' + field.name + ' for partial payment.');
+                    element.focus();
+                    return false;
+                }
+            }
+        }
+    });
 
     // Event listeners
     partialPaymentCheckbox.addEventListener('change', togglePaymentFields);

@@ -31,14 +31,14 @@ google-auth-oauthlib==1.0.0
 google-auth-httplib2==0.1.0
 
 # Email
-secure-smtplib==0.2.1  # More secure SMTP library
+#secure-smtplib==0.2.1  # More secure SMTP library
 
 # PDF processing
 reportlab==4.0.4
 PyPDF2==3.0.1
 pdfkit==1.0.0
 img2pdf==0.4.4
-Pillow==10.0.0  # Required for image processing
+Pillow>=9.5.0,<10.0.0  # Required for image processing
 weasyprint==60.1  # Alternative HTML to PDF converter
 
 # Date and time

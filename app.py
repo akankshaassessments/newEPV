@@ -5840,22 +5840,29 @@ def finance_dashboard():
         # Get entries pending approval
         pending_approval_entries = []
         if city_names:
-            # If finance approver has assigned cities, only show entries from those cities
-            pending_approval_entries = FinanceEntry.query.join(EPV).join(CostCenter).filter(
+            # If finance approver has assigned cities, show entries from those cities
+            # Use LEFT JOIN to handle EPVs without cost centers and include direct city matches
+            pending_approval_entries = FinanceEntry.query.join(EPV).outerjoin(CostCenter).filter(
                 FinanceEntry.status == 'pending',
-                CostCenter.city.in_(city_names)
+                EPV.finance_status == 'processed',  # CRITICAL FIX: Only show processed EPVs
+                db.or_(
+                    EPV.city.in_(city_names),  # Direct city match
+                    CostCenter.city.in_(city_names)  # Cost center city match
+                )
             ).order_by(FinanceEntry.entry_date.desc()).all()
-            print(f"DEBUG: Found {len(pending_approval_entries)} pending approval entries for assigned cities")
+            print(f"DEBUG: Found {len(pending_approval_entries)} pending approval entries for assigned cities: {city_names}")
         else:
-            # If no cities assigned, show all pending entries
-            pending_approval_entries = FinanceEntry.query.filter_by(
-                status='pending'
+            # If no cities assigned, show all pending entries that are processed
+            pending_approval_entries = FinanceEntry.query.join(EPV).filter(
+                FinanceEntry.status == 'pending',
+                EPV.finance_status == 'processed'  # CRITICAL FIX: Only show processed EPVs
             ).order_by(FinanceEntry.entry_date.desc()).all()
             print(f"DEBUG: Found {len(pending_approval_entries)} pending approval entries across all cities")
 
         # Debug: Print details of pending entries
         for entry in pending_approval_entries:
-            print(f"DEBUG: Pending entry ID {entry.id}, EPV {entry.epv.epv_id}, Status: {entry.status}, Entry Date: {entry.entry_date}")
+            epv_city = entry.epv.city if entry.epv.city else (entry.epv.cost_center.city if entry.epv.cost_center else 'No City')
+            print(f"DEBUG: Pending entry ID {entry.id}, EPV {entry.epv.epv_id}, Status: {entry.status}, Entry Date: {entry.entry_date}, EPV City: {epv_city}, Finance User: {entry.finance_user.name if entry.finance_user else 'Unknown'}")
 
         # Get approved/rejected entries by this finance approver
         approved_rejected_entries = FinanceEntry.query.filter(
@@ -6092,6 +6099,7 @@ def finance_dashboard_content():
                     # Count the current number of pending entries
                     current_count = FinanceEntry.query.join(EPV).outerjoin(CostCenter).filter(
                         FinanceEntry.status == 'pending',
+                        EPV.finance_status == 'processed',  # CRITICAL FIX: Only show processed EPVs
                         db.or_(
                             EPV.city.in_(city_names),
                             CostCenter.city.in_(city_names)
@@ -6105,6 +6113,7 @@ def finance_dashboard_content():
                         # Check if any entries have been updated recently
                         recent_updates = FinanceEntry.query.join(EPV).outerjoin(CostCenter).filter(
                             FinanceEntry.status == 'pending',
+                            EPV.finance_status == 'processed',  # CRITICAL FIX: Only show processed EPVs
                             db.or_(
                                 EPV.city.in_(city_names),
                                 CostCenter.city.in_(city_names)
@@ -6115,8 +6124,9 @@ def finance_dashboard_content():
                         has_updates = recent_updates > 0
                 else:
                     # If no cities assigned, check all pending entries
-                    current_count = FinanceEntry.query.filter(
-                        FinanceEntry.status == 'pending'
+                    current_count = FinanceEntry.query.join(EPV).filter(
+                        FinanceEntry.status == 'pending',
+                        EPV.finance_status == 'processed'  # CRITICAL FIX: Only show processed EPVs
                     ).count()
 
                     # Check if the count is different
@@ -6124,8 +6134,9 @@ def finance_dashboard_content():
                         has_updates = True
                     else:
                         # Check if any entries have been updated recently
-                        recent_updates = FinanceEntry.query.filter(
+                        recent_updates = FinanceEntry.query.join(EPV).filter(
                             FinanceEntry.status == 'pending',
+                            EPV.finance_status == 'processed',  # CRITICAL FIX: Only show processed EPVs
                             FinanceEntry.entry_date > last_update_datetime
                         ).count()
 
@@ -6495,8 +6506,34 @@ def edit_finance_entry(entry_id):
         flash('You can only edit entries you processed.', 'error')
         return redirect(url_for('finance_dashboard'))
 
-    # Get the EPV record
-    epv = entry.epv
+    # CRITICAL FIX: Initialize all payment fields immediately to prevent NULL constraint violations
+    # This must be done BEFORE any other operations that might trigger autoflush
+    print(f"DEBUG: Initializing all payment fields immediately to prevent NULL constraints...")
+    with db.session.no_autoflush:
+        # Ensure all payment fields have safe values
+        if entry.journal_entry is None:
+            entry.journal_entry = ""
+        if entry.payment_voucher is None:
+            entry.payment_voucher = ""
+        if entry.fcra_status is None:
+            entry.fcra_status = ""
+        if entry.journal_entry_1 is None:
+            entry.journal_entry_1 = ""
+        if entry.payment_voucher_1 is None:
+            entry.payment_voucher_1 = ""
+        if entry.amount_1 is None:
+            entry.amount_1 = 0
+        if entry.fcra_status_1 is None:
+            entry.fcra_status_1 = ""
+        if entry.journal_entry_2 is None:
+            entry.journal_entry_2 = ""
+        if entry.payment_voucher_2 is None:
+            entry.payment_voucher_2 = ""
+        if entry.amount_2 is None:
+            entry.amount_2 = 0
+        if entry.fcra_status_2 is None:
+            entry.fcra_status_2 = ""
+        print(f"DEBUG: All payment fields initialized to safe values")
 
     if request.method == 'POST':
         try:
@@ -6509,89 +6546,123 @@ def edit_finance_entry(entry_id):
             for key, value in request.form.items():
                 print(f"DEBUG:   {key} = {value}")
 
-            # Update the finance entry with new data
-            print(f"DEBUG: Updating vendor_name from '{entry.vendor_name}' to '{request.form.get('vendor_name')}'")
-            entry.vendor_name = request.form.get('vendor_name')
-            print(f"DEBUG: Updating reason from '{entry.reason}' to '{request.form.get('reason')}'")
-            entry.reason = request.form.get('reason')
-            print(f"DEBUG: Updating comments from '{entry.comments}' to '{request.form.get('comments')}'")
-            entry.comments = request.form.get('comments')
+            # CRITICAL FIX: Use no_autoflush to prevent premature database updates during field modifications
+            with db.session.no_autoflush:
+                print(f"DEBUG: Starting no_autoflush block to prevent premature database commits")
 
-            # Update entry date if provided
-            entry_date_str = request.form.get('entry_date')
-            if entry_date_str:
-                print(f"DEBUG: Updating entry_date to '{entry_date_str}'")
-                entry.entry_date = datetime.strptime(entry_date_str, '%Y-%m-%d')
+                # Get the EPV record inside no_autoflush to prevent premature flush
+                epv = entry.epv
+                print(f"DEBUG: Retrieved EPV record: {epv.epv_id}")
 
-            # Check if this is a partial payment
-            is_partial_payment = request.form.get('is_partial_payment') == 'on'
-            print(f"DEBUG: is_partial_payment checkbox: {is_partial_payment}")
-            entry.is_partial_payment = is_partial_payment
+                # Update the finance entry with new data
+                print(f"DEBUG: Updating vendor_name from '{entry.vendor_name}' to '{request.form.get('vendor_name')}'")
+                entry.vendor_name = request.form.get('vendor_name')
+                print(f"DEBUG: Updating reason from '{entry.reason}' to '{request.form.get('reason')}'")
+                entry.reason = request.form.get('reason')
+                print(f"DEBUG: Updating comments from '{entry.comments}' to '{request.form.get('comments')}'")
+                entry.comments = request.form.get('comments')
 
-            if is_partial_payment:
-                print(f"DEBUG: Processing partial payment fields...")
-                # Handle partial payment fields
-                entry.journal_entry_1 = request.form.get('journal_entry_1')
-                entry.payment_voucher_1 = request.form.get('payment_voucher_1')
-                amount_1_str = request.form.get('amount_1', '0')
-                entry.amount_1 = float(amount_1_str) if amount_1_str else 0
-                entry.fcra_status_1 = request.form.get('fcra_status_1')
-                print(f"DEBUG: Payment 1 - Journal: {entry.journal_entry_1}, Voucher: {entry.payment_voucher_1}, Amount: {entry.amount_1}, FCRA: {entry.fcra_status_1}")
+                # Update entry date if provided
+                entry_date_str = request.form.get('entry_date')
+                if entry_date_str:
+                    print(f"DEBUG: Updating entry_date to '{entry_date_str}'")
+                    entry.entry_date = datetime.strptime(entry_date_str, '%Y-%m-%d')
 
-                entry.journal_entry_2 = request.form.get('journal_entry_2')
-                entry.payment_voucher_2 = request.form.get('payment_voucher_2')
-                amount_2_str = request.form.get('amount_2', '0')
-                entry.amount_2 = float(amount_2_str) if amount_2_str else 0
-                entry.fcra_status_2 = request.form.get('fcra_status_2')
-                print(f"DEBUG: Payment 2 - Journal: {entry.journal_entry_2}, Voucher: {entry.payment_voucher_2}, Amount: {entry.amount_2}, FCRA: {entry.fcra_status_2}")
+                # Check if this is a partial payment
+                is_partial_payment = request.form.get('is_partial_payment') == 'on'
+                print(f"DEBUG: is_partial_payment checkbox: {is_partial_payment}")
+                entry.is_partial_payment = is_partial_payment
 
-                # Calculate total amount
-                entry.amount = entry.amount_1 + entry.amount_2
-                print(f"DEBUG: Total amount calculated: {entry.amount}")
+                # CRITICAL FIX: Initialize ALL fields to prevent NULL constraint violations
+                # Always set both single and partial payment fields to safe values first
+                print(f"DEBUG: Initializing all payment fields to prevent NULL constraints...")
+                entry.journal_entry = ""
+                entry.payment_voucher = ""
+                entry.fcra_status = ""
+                entry.journal_entry_1 = ""
+                entry.payment_voucher_1 = ""
+                entry.amount_1 = 0
+                entry.fcra_status_1 = ""
+                entry.journal_entry_2 = ""
+                entry.payment_voucher_2 = ""
+                entry.amount_2 = 0
+                entry.fcra_status_2 = ""
+                print(f"DEBUG: All payment fields initialized to safe values")
 
-                # Clear single payment fields
-                entry.journal_entry = None
-                entry.payment_voucher = None
-                entry.fcra_status = None
-                print(f"DEBUG: Cleared single payment fields")
-            else:
-                print(f"DEBUG: Processing single payment fields...")
-                # Handle single payment fields
-                entry.journal_entry = request.form.get('journal_entry')
-                entry.payment_voucher = request.form.get('payment_voucher')
-                amount_str = request.form.get('amount', '0')
-                entry.amount = float(amount_str) if amount_str else 0
-                entry.fcra_status = request.form.get('fcra_status')
-                print(f"DEBUG: Single payment - Journal: {entry.journal_entry}, Voucher: {entry.payment_voucher}, Amount: {entry.amount}, FCRA: {entry.fcra_status}")
+                if is_partial_payment:
+                    print(f"DEBUG: Processing partial payment fields...")
+                    # Handle partial payment fields
+                    entry.journal_entry_1 = request.form.get('journal_entry_1')
+                    entry.payment_voucher_1 = request.form.get('payment_voucher_1')
+                    amount_1_str = request.form.get('amount_1', '0')
+                    entry.amount_1 = float(amount_1_str) if amount_1_str else 0
+                    entry.fcra_status_1 = request.form.get('fcra_status_1')
+                    print(f"DEBUG: Payment 1 - Journal: {entry.journal_entry_1}, Voucher: {entry.payment_voucher_1}, Amount: {entry.amount_1}, FCRA: {entry.fcra_status_1}")
 
-                # Clear partial payment fields
-                entry.journal_entry_1 = None
-                entry.payment_voucher_1 = None
-                entry.amount_1 = None
-                entry.fcra_status_1 = None
-                entry.journal_entry_2 = None
-                entry.payment_voucher_2 = None
-                entry.amount_2 = None
-                entry.fcra_status_2 = None
-                print(f"DEBUG: Cleared partial payment fields")
+                    entry.journal_entry_2 = request.form.get('journal_entry_2')
+                    entry.payment_voucher_2 = request.form.get('payment_voucher_2')
+                    amount_2_str = request.form.get('amount_2', '0')
+                    entry.amount_2 = float(amount_2_str) if amount_2_str else 0
+                    entry.fcra_status_2 = request.form.get('fcra_status_2')
+                    print(f"DEBUG: Payment 2 - Journal: {entry.journal_entry_2}, Voucher: {entry.payment_voucher_2}, Amount: {entry.amount_2}, FCRA: {entry.fcra_status_2}")
 
-            # Reset status to pending for re-approval
-            print(f"DEBUG: Changing status from '{entry.status}' to 'pending'")
-            entry.status = 'pending'
-            entry.approver_id = None
-            entry.approved_on = None
-            entry.rejection_reason = None
+                    # Validate that partial amounts add up to EPV total
+                    total_partial = entry.amount_1 + entry.amount_2
+                    print(f"DEBUG: Validating partial amounts: {entry.amount_1} + {entry.amount_2} = {total_partial} vs EPV total {epv.total_amount}")
 
-            # Clear payment details since it's being resubmitted
-            entry.transaction_id = None
-            entry.payment_date = None
-            entry.transaction_id_1 = None
-            entry.payment_date_1 = None
-            entry.transaction_id_2 = None
-            entry.payment_date_2 = None
+                    if abs(total_partial - epv.total_amount) > 0.01:
+                        print(f"DEBUG: Partial amount validation failed!")
+                        flash(f'Partial amounts (₹{total_partial:.2f}) do not match EPV total (₹{epv.total_amount:.2f})', 'error')
+                        return redirect(url_for('edit_finance_entry', entry_id=entry_id))
 
-            # Update the entry date to current time
-            entry.entry_date = datetime.now()
+                    # Calculate total amount
+                    entry.amount = entry.amount_1 + entry.amount_2
+                    print(f"DEBUG: Total amount calculated: {entry.amount}")
+
+                    # Single payment fields already cleared above
+                    print(f"DEBUG: Single payment fields already cleared during initialization")
+                else:
+                    print(f"DEBUG: Processing single payment fields...")
+                    # Handle single payment fields
+                    entry.journal_entry = request.form.get('journal_entry')
+                    entry.payment_voucher = request.form.get('payment_voucher')
+                    amount_str = request.form.get('amount', '0')
+                    entry.amount = float(amount_str) if amount_str else 0
+                    entry.fcra_status = request.form.get('fcra_status')
+                    print(f"DEBUG: Single payment - Journal: {entry.journal_entry}, Voucher: {entry.payment_voucher}, Amount: {entry.amount}, FCRA: {entry.fcra_status}")
+
+                    # Partial payment fields already cleared above
+                    print(f"DEBUG: Partial payment fields already cleared during initialization")
+
+                # Reset status to pending for re-approval
+                print(f"DEBUG: RESUBMISSION - Changing status from '{entry.status}' to 'pending'")
+                print(f"DEBUG: RESUBMISSION - EPV ID: {epv.epv_id}, Entry ID: {entry.id}")
+                print(f"DEBUG: RESUBMISSION - EPV City: {epv.city}, Cost Center City: {epv.cost_center.city if epv.cost_center else 'None'}")
+                print(f"DEBUG: RESUBMISSION - Finance User: {entry.finance_user.name if entry.finance_user else 'Unknown'}")
+                print(f"DEBUG: RESUBMISSION - Original Approver: {entry.approver.name if entry.approver else 'Unknown'}")
+
+                entry.status = 'pending'
+                entry.approver_id = None
+                entry.approved_on = None
+                entry.rejection_reason = None
+
+                # CRITICAL FIX: Update EPV finance_status to 'processed' so it appears in Finance Approver dashboard
+                epv.finance_status = 'processed'
+                print(f"DEBUG: RESUBMISSION - Updated EPV finance_status to 'processed'")
+
+                # Clear payment details since it's being resubmitted
+                entry.transaction_id = None
+                entry.payment_date = None
+                entry.transaction_id_1 = None
+                entry.payment_date_1 = None
+                entry.transaction_id_2 = None
+                entry.payment_date_2 = None
+
+                # Update the entry date to current time
+                entry.entry_date = datetime.now()
+                print(f"DEBUG: RESUBMISSION - Updated entry_date to: {entry.entry_date}")
+
+                print(f"DEBUG: Exiting no_autoflush block - all field modifications complete")
 
             # Save to database
             print(f"DEBUG: About to commit database changes...")
@@ -6608,8 +6679,58 @@ def edit_finance_entry(entry_id):
             if updated_entry and updated_entry.is_partial_payment:
                 print(f"VERIFICATION: Partial payment data saved - Amount1: {updated_entry.amount_1}, FCRA1: {updated_entry.fcra_status_1}, Amount2: {updated_entry.amount_2}, FCRA2: {updated_entry.fcra_status_2}")
 
+            # Send notification email to Finance Approvers about resubmission
+            try:
+                print(f"DEBUG: RESUBMISSION - Sending notification to Finance Approvers...")
+                from smtp_email_utils import send_email
+
+                # Get Finance Approvers
+                finance_approvers = EmployeeDetails.query.filter_by(role='Finance Approver', is_active=True).all()
+
+                for approver in finance_approvers:
+                    if approver.email:
+                        subject = f"Finance Entry Resubmitted for Approval - {epv.epv_id}"
+                        body = f"""
+Dear {approver.name},
+
+A finance entry has been updated and resubmitted for your approval.
+
+EPV Details:
+- EPV ID: {epv.epv_id}
+- Employee: {epv.employee_name}
+- Cost Center: {epv.cost_center_name}
+- Total Amount: ₹{epv.total_amount:,.2f}
+
+Finance Entry Details:
+- Processed by: {entry.finance_user.name if entry.finance_user else 'Unknown'}
+- Vendor: {entry.vendor_name}
+- Amount: ₹{entry.amount:,.2f}
+- Resubmitted on: {entry.entry_date.strftime('%d-%m-%Y %H:%M')}
+
+Please review and approve/reject this entry in the Finance Dashboard.
+
+Best regards,
+EPV System
+                        """
+
+                        success, message_id = send_email(
+                            to_email=approver.email,
+                            subject=subject,
+                            body=body
+                        )
+
+                        if success:
+                            print(f"DEBUG: RESUBMISSION - Successfully sent notification to {approver.email}")
+                        else:
+                            print(f"DEBUG: RESUBMISSION - Failed to send notification to {approver.email}: {message_id}")
+
+            except Exception as email_error:
+                print(f"ERROR: RESUBMISSION - Failed to send notification emails: {str(email_error)}")
+                # Don't fail the whole process if email sending fails
+                pass
+
             print(f"DEBUG: About to flash success message and redirect to finance_dashboard")
-            flash('Finance entry has been updated and resubmitted for approval.', 'success')
+            flash('Finance entry has been updated and resubmitted for approval. The entry will now appear in the Finance Approver\'s dashboard.', 'success')
             print(f"DEBUG: Executing redirect to finance_dashboard...")
             return redirect(url_for('finance_dashboard'))
 
@@ -6628,6 +6749,8 @@ def edit_finance_entry(entry_id):
             return redirect(url_for('edit_finance_entry', entry_id=entry_id))
 
     # GET request - show the edit form
+    # Get the EPV record for the template
+    epv = entry.epv
     return render_template(
         'edit_finance_entry.html',
         user=session.get('user_info'),
