@@ -5492,11 +5492,29 @@ def reject_finance_epv(epv_id):
 
     if not rejection_reason:
         flash('Rejection reason is required.', 'danger')
+        # Check if we're coming from edit finance entry page
+        if request.referrer and 'edit-finance-entry' in request.referrer:
+            return redirect(request.referrer)
         return redirect(url_for('finance_entry', epv_id=epv_id))
 
     if not rejection_type:
         flash('Rejection type is required.', 'danger')
+        # Check if we're coming from edit finance entry page
+        if request.referrer and 'edit-finance-entry' in request.referrer:
+            return redirect(request.referrer)
         return redirect(url_for('finance_entry', epv_id=epv_id))
+
+    # Check if there's an existing rejected finance entry for this EPV
+    # If so, delete it since we're rejecting the EPV back to the employee
+    existing_finance_entry = FinanceEntry.query.filter_by(
+        epv_id=epv.id,
+        status='rejected'
+    ).first()
+
+    if existing_finance_entry:
+        print(f"DEBUG: Deleting rejected finance entry {existing_finance_entry.id} for EPV {epv_id}")
+        db.session.delete(existing_finance_entry)
+        # Don't commit yet, we'll commit everything together
 
     # Get finance user details
     finance_user_email = session.get('email')
