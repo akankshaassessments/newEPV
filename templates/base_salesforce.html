@@ -483,6 +483,15 @@
 
             // Initialize notifications
             initNotifications();
+
+            // Additional failsafe to hide loading screen
+            setTimeout(function() {
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen && loadingScreen.style.display !== 'none') {
+                    console.log('Base template failsafe: hiding loading screen');
+                    loadingScreen.style.display = 'none';
+                }
+            }, 2000);
         });
 
         // Function to initialize and update notifications

@@ -2,6 +2,90 @@
 
 {% block title %}Upload Supplementary Documents{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* File validation styles */
+    .file-validation-error .alert {
+        border-left: 4px solid #dc3545;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    .file-validation-success .alert {
+        border-left: 4px solid #28a745;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+
+    .file-validation-loading .alert {
+        border-left: 4px solid #17a2b8;
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+
+    .shake-animation {
+        animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    /* Default file input styles - neutral appearance */
+    input[type="file"] {
+        border-color: #ced4da;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    /* File input focus styles */
+    input[type="file"]:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    /* File input error styles - only when explicitly marked with error class */
+    input[type="file"].has-error {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+
+    /* File input success styles */
+    input[type="file"].has-success {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+
+    /* Spinner animation for loading */
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    /* Fade in animation for validation messages */
+    .file-validation-error,
+    .file-validation-success,
+    .file-validation-loading {
+        animation: fadeInUp 0.3s ease-in-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row">
@@ -68,7 +152,7 @@
 
                     <form method="POST" action="{{ url_for('upload_supplementary', epv_id=epv.epv_id) }}" enctype="multipart/form-data" id="uploadForm">
                         <div id="documentsContainer">
-                            <div class="document-entry mb-3">
+                            <div class="document-entry mb-3 document-upload-item" id="document-container-1">
                                 <div class="mb-3">
                                     <label for="document" class="form-label">Upload Document</label>
                                     <input type="file" class="form-control" id="document" name="document" accept=".pdf,.jpg,.jpeg,.png" required>
@@ -95,7 +179,7 @@
 
                         <div class="d-flex justify-content-end">
                             <a href="{{ url_for('epv_record', epv_id=epv.epv_id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="button" class="btn btn-primary" id="submitBtn">
                                 <i class="fas fa-upload me-1"></i> Upload Documents
                             </button>
                         </div>
@@ -103,14 +187,149 @@
 
                     <script>
                         document.addEventListener('DOMContentLoaded', function() {
+                            // Clean up any stale validation messages from previous forms
+                            $('.file-validation-error, .file-validation-success, .file-validation-loading').remove();
+                            $('input[type="file"]').removeClass('has-error has-success');
+
+                            // Also remove any elements with validation-related IDs
+                            $('[id*="-error"], [id*="-success"], [id*="-loading"]').each(function() {
+                                const id = $(this).attr('id');
+                                if (id && (id.includes('document') || id.includes('supplementary'))) {
+                                    console.log('Removing supplementary validation element:', id);
+                                    $(this).remove();
+                                }
+                            });
+
+                            console.log('Cleaned up stale supplementary file validation messages');
+
+                            // Helper functions for form validation
+                            function clearValidationErrors() {
+                                // Remove all validation error messages
+                                $('.field-validation-error').remove();
+                                // Remove error styling from all form controls
+                                $('.form-control, .form-select').removeClass('is-invalid');
+                            }
+
+                            function addFieldError(fieldId, message) {
+                                const field = $(`#${fieldId}`);
+                                if (field.length) {
+                                    // Add error styling
+                                    field.addClass('is-invalid');
+
+                                    // Add error message below the field
+                                    const errorHtml = `
+                                        <div class="field-validation-error invalid-feedback d-block">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            ${message}
+                                        </div>
+                                    `;
+
+                                    // Remove any existing error message for this field
+                                    field.siblings('.field-validation-error').remove();
+                                    field.after(errorHtml);
+                                }
+                            }
+
+
+
+                            // Enhanced form validation
+                            function validateSupplementaryForm() {
+                                // Clear any previous validation messages
+                                clearValidationErrors();
+
+                                let validationErrors = [];
+                                let firstErrorField = null;
+
+                                // Validate each document upload
+                                let hasValidDocuments = false;
+                                $('.document-upload-item').each(function(index) {
+                                    const documentNumber = index + 1;
+                                    let documentValid = true;
+
+                                    // Get file input for this document
+                                    const fileInput = $(this).find('input[type="file"]')[0];
+                                    const fileInputId = $(fileInput).attr('id');
+
+                                    // Check if file is uploaded
+                                    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                                        validationErrors.push(`Document #${documentNumber}: File is required`);
+                                        addFieldError(fileInputId, "Please select a file to upload");
+                                        if (!firstErrorField) firstErrorField = $(fileInput);
+                                        documentValid = false;
+                                    } else {
+                                        // Check if file has validation errors (corrupt files)
+                                        const hasFileError = $(fileInput).hasClass('has-error');
+                                        if (hasFileError) {
+                                            validationErrors.push(`Document #${documentNumber}: File has validation errors`);
+                                            addFieldError(fileInputId, "Please fix the file validation errors");
+                                            if (!firstErrorField) firstErrorField = $(fileInput);
+                                            documentValid = false;
+                                        }
+                                    }
+
+                                    // Description is optional, so we don't validate it
+
+                                    if (documentValid) {
+                                        hasValidDocuments = true;
+                                    }
+                                });
+
+                                if (!hasValidDocuments) {
+                                    validationErrors.push("At least one valid document is required");
+                                }
+
+                                // If there are errors, scroll to first error and focus
+                                if (validationErrors.length > 0) {
+                                    if (firstErrorField) {
+                                        // Scroll to first error and focus
+                                        $('html, body').animate({
+                                            scrollTop: firstErrorField.offset().top - 100
+                                        }, 500);
+                                        firstErrorField.focus();
+                                    }
+                                    return false;
+                                }
+
+                                return true;
+                            }
+
+                            // Submit button handler
+                            $('#submitBtn').click(function(e) {
+                                e.preventDefault();
+
+                                // Validate form
+                                if (!validateSupplementaryForm()) {
+                                    return;
+                                }
+
+                                // Show loading screen before submitting
+                                if (typeof LoadingScreen !== 'undefined') {
+                                    LoadingScreen.show(3); // Show for estimated 3 seconds
+                                }
+
+                                // Change button text and disable it
+                                const $submitBtn = $('#submitBtn');
+                                const originalText = $submitBtn.html();
+                                $submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i> Uploading...').prop('disabled', true);
+
+                                // If validation passes, submit the form
+                                $('#uploadForm')[0].submit();
+                            });
+
                             const addMoreBtn = document.getElementById('addMoreBtn');
                             const documentsContainer = document.getElementById('documentsContainer');
                             let documentCount = 1;
 
+                            // File validation on file input change
+                            $(document).on("change", "input[type='file']", function() {
+                                validateFileUpload(this);
+                            });
+
                             addMoreBtn.addEventListener('click', function() {
                                 documentCount++;
                                 const newEntry = document.createElement('div');
-                                newEntry.className = 'document-entry mb-3';
+                                newEntry.className = 'document-entry mb-3 document-upload-item';
+                                newEntry.setAttribute('id', `document-container-${documentCount}`);
                                 newEntry.innerHTML = `
                                     <hr>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -140,9 +359,601 @@
                                 // Add event listener to the remove button
                                 const removeBtn = newEntry.querySelector('.remove-document');
                                 removeBtn.addEventListener('click', function() {
+                                    // Clean up any validation messages for this document before removing
+                                    const fileInput = newEntry.querySelector('input[type="file"]');
+                                    if (fileInput) {
+                                        const inputId = fileInput.id;
+                                        $(`[id*="${inputId}-error"], [id*="${inputId}-success"], [id*="${inputId}-loading"]`).remove();
+                                    }
                                     documentsContainer.removeChild(newEntry);
                                 });
                             });
+
+                            // Function to validate file upload and check for corruption
+                            function validateFileUpload(fileInput) {
+                                const file = fileInput.files[0];
+                                const inputId = $(fileInput).attr('id');
+                                const errorId = `${inputId}-error`;
+
+                                // Remove any existing error message
+                                $(`#${errorId}, #${inputId}-success, #${inputId}-loading`).remove();
+
+                                if (!file) {
+                                    return;
+                                }
+
+                                console.log('Starting file validation for:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+                                // Check file size (10MB limit for supplementary docs)
+                                const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+                                if (file.size > maxSize) {
+                                    showFileError(fileInput, 'File size exceeds 10MB limit. Please choose a smaller file.');
+                                    $(fileInput).val(''); // Clear the input
+                                    return;
+                                }
+
+                                // Check if file is suspiciously small
+                                if (file.size < 100) {
+                                    showFileError(fileInput, 'File is too small to be valid. Please repair the file and try again.');
+                                    $(fileInput).val(''); // Clear the input
+                                    return;
+                                }
+
+                                // Check file type
+                                const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+                                const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+                                const fileName = file.name.toLowerCase();
+                                const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+
+                                if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+                                    showFileError(fileInput, 'Invalid file type. Please upload PDF, JPG, JPEG, or PNG files only.');
+                                    $(fileInput).val(''); // Clear the input
+                                    return;
+                                }
+
+                                // Show loading indicator
+                                showFileLoading(fileInput, 'Validating file...');
+
+                                // Check for file corruption with strict validation
+                                if (file.type === 'application/pdf' || fileName.endsWith('.pdf')) {
+                                    validatePDFFileStrict(file, fileInput);
+                                } else if (file.type.startsWith('image/') || ['.jpg', '.jpeg', '.png'].includes(fileExtension)) {
+                                    validateImageFileStrict(file, fileInput);
+                                } else {
+                                    // For other file types, do basic validation
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Unsupported file type. Please upload PDF, JPG, JPEG, or PNG files only.');
+                                    $(fileInput).val('');
+                                }
+                            }
+
+                            // STRICT PDF validation function that properly rejects corrupt files
+                            function validatePDFFileStrict(file, fileInput) {
+                                console.log('=== STRICT PDF VALIDATION START ===');
+                                console.log('File name:', file.name);
+                                console.log('File size:', file.size, 'bytes');
+                                console.log('File type:', file.type);
+
+                                const reader = new FileReader();
+
+                                // Add timeout to prevent hanging
+                                const timeoutId = setTimeout(() => {
+                                    console.log('PDF validation timed out');
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'File validation timed out. The file may be corrupt. Please repair the file and try again.');
+                                    $(fileInput).val('');
+                                }, 8000); // 8 second timeout
+
+                                reader.onload = function(e) {
+                                    clearTimeout(timeoutId);
+
+                                    try {
+                                        const arrayBuffer = e.target.result;
+                                        const uint8Array = new Uint8Array(arrayBuffer);
+
+                                        console.log('PDF file loaded, analyzing...');
+                                        console.log('Actual file size:', uint8Array.length, 'bytes');
+
+                                        // STRICT CHECK 1: Minimum size for valid PDF
+                                        if (uint8Array.length < 200) {
+                                            console.log('FAILED: File too small for valid PDF');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This file is too small to be a valid PDF. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // STRICT CHECK 2: PDF header validation with detailed analysis
+                                        const headerBytes = uint8Array.slice(0, 20);
+                                        const headerString = String.fromCharCode.apply(null, headerBytes);
+                                        console.log('PDF Header found:', JSON.stringify(headerString));
+                                        console.log('Header bytes (hex):', Array.from(headerBytes).map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+                                        // ULTRA STRICT: Check exact PDF signature bytes
+                                        if (headerBytes[0] !== 0x25 || // %
+                                            headerBytes[1] !== 0x50 || // P
+                                            headerBytes[2] !== 0x44 || // D
+                                            headerBytes[3] !== 0x46 || // F
+                                            headerBytes[4] !== 0x2D) { // -
+                                            console.log('FAILED: Invalid PDF magic bytes - File is corrupt or not a PDF');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This file is not a valid PDF or is corrupt. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // Check if header contains any null bytes (corruption indicator)
+                                        for (let i = 0; i < 10; i++) {
+                                            if (headerBytes[i] === 0) {
+                                                console.log('FAILED: Null byte found in PDF header at position', i);
+                                                hideFileLoading(fileInput);
+                                                showFileError(fileInput, 'This PDF file is corrupt (null bytes in header). Please repair the file and try again.');
+                                                $(fileInput).val('');
+                                                return;
+                                            }
+                                        }
+
+                                        // STRICT CHECK 3: PDF version validation
+                                        const versionMatch = headerString.match(/%PDF-(\d+\.\d+)/);
+                                        if (!versionMatch) {
+                                            console.log('FAILED: No valid PDF version found');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This PDF file has an invalid version header. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        const version = parseFloat(versionMatch[1]);
+                                        console.log('PDF Version:', version);
+                                        if (version < 1.0 || version > 2.0) {
+                                            console.log('FAILED: Unsupported PDF version');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This PDF file has an unsupported version. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // STRICT CHECK 4: Look for corruption indicators in first 1KB
+                                        const firstKB = uint8Array.slice(0, Math.min(1024, uint8Array.length));
+                                        let nullByteCount = 0;
+                                        let invalidCharCount = 0;
+
+                                        for (let i = 0; i < firstKB.length; i++) {
+                                            if (firstKB[i] === 0) nullByteCount++;
+                                            if (firstKB[i] > 127 && i < 100) invalidCharCount++;
+                                        }
+
+                                        console.log('Corruption indicators - Null bytes:', nullByteCount, 'Invalid chars:', invalidCharCount);
+
+                                        if (nullByteCount > 10) {
+                                            console.log('FAILED: Too many null bytes detected');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This PDF file appears to be corrupt (contains excessive null bytes). Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // STRICT CHECK 5: Essential PDF structure validation
+                                        const sampleSize = Math.min(5000, uint8Array.length);
+                                        const sampleBytes = uint8Array.slice(0, sampleSize);
+                                        const sampleString = String.fromCharCode.apply(null, sampleBytes);
+
+                                        const hasObj = sampleString.includes(' obj') || sampleString.includes('\nobj');
+
+                                        console.log('PDF Structure check:', {
+                                            hasObj: hasObj,
+                                            sampleSize: sampleSize
+                                        });
+
+                                        if (!hasObj) {
+                                            console.log('FAILED: Missing PDF object structure');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This PDF file is missing essential object structure. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // STRICT CHECK 6: PDF ending validation
+                                        const endSize = Math.min(1000, uint8Array.length);
+                                        const endBytes = uint8Array.slice(-endSize);
+                                        const endString = String.fromCharCode.apply(null, endBytes);
+
+                                        const hasEOF = endString.includes('%%EOF');
+
+                                        console.log('PDF Ending check:', {
+                                            hasEOF: hasEOF,
+                                            endSize: endSize
+                                        });
+
+                                        if (!hasEOF) {
+                                            console.log('FAILED: Missing PDF end marker');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This PDF file is incomplete or corrupt (missing end marker). Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // STRICT CHECK 7: Additional corruption patterns
+                                        const fullString = String.fromCharCode.apply(null, uint8Array.slice(0, Math.min(10000, uint8Array.length)));
+
+                                        if (fullString.includes('\x00\x00\x00\x00\x00')) {
+                                            console.log('FAILED: Corruption pattern detected (consecutive null bytes)');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This PDF file contains corruption patterns. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // FINAL CHECK: Ensure file name doesn't indicate it's a test/corrupt file
+                                        const suspiciousNames = ['test', 'corrupt', 'broken', 'invalid', 'bh1', 'dummy'];
+                                        const fileName = file.name.toLowerCase();
+                                        for (const suspiciousName of suspiciousNames) {
+                                            if (fileName.includes(suspiciousName)) {
+                                                console.log('FAILED: Suspicious filename detected:', fileName);
+                                                hideFileLoading(fileInput);
+                                                showFileError(fileInput, 'This file appears to be a test or corrupt file. Please upload a valid PDF and try again.');
+                                                $(fileInput).val('');
+                                                return;
+                                            }
+                                        }
+
+                                        // If we get here, the PDF passed all strict validation checks
+                                        console.log('PDF VALIDATION PASSED - File appears to be valid');
+                                        hideFileLoading(fileInput);
+                                        showFileSuccess(fileInput, 'PDF file validated successfully.');
+
+                                    } catch (error) {
+                                        clearTimeout(timeoutId);
+                                        console.error('PDF validation error:', error);
+                                        hideFileLoading(fileInput);
+                                        showFileError(fileInput, 'Error validating PDF file. The file may be corrupt. Please repair the file and try again.');
+                                        $(fileInput).val('');
+                                    }
+                                };
+
+                                reader.onerror = function() {
+                                    clearTimeout(timeoutId);
+                                    console.log('FileReader error - file is corrupt');
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Unable to read the PDF file. The file is corrupt. Please repair the file and try again.');
+                                    $(fileInput).val('');
+                                };
+
+                                try {
+                                    reader.readAsArrayBuffer(file);
+                                } catch (error) {
+                                    clearTimeout(timeoutId);
+                                    console.error('Error reading file:', error);
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Error reading file. The file may be corrupt. Please repair the file and try again.');
+                                    $(fileInput).val('');
+                                }
+                            }
+
+                            // STRICT Image validation function that properly rejects corrupt files
+                            function validateImageFileStrict(file, fileInput) {
+                                console.log('=== STRICT IMAGE VALIDATION START ===');
+                                console.log('File name:', file.name);
+                                console.log('File size:', file.size, 'bytes');
+                                console.log('File type:', file.type);
+
+                                // First, do binary validation
+                                const reader = new FileReader();
+
+                                reader.onload = function(e) {
+                                    try {
+                                        const arrayBuffer = e.target.result;
+                                        const uint8Array = new Uint8Array(arrayBuffer);
+
+                                        console.log('Image file loaded, analyzing...');
+                                        console.log('Actual file size:', uint8Array.length, 'bytes');
+
+                                        // STRICT CHECK 1: Minimum size
+                                        if (uint8Array.length < 100) {
+                                            console.log('FAILED: Image file too small');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This image file is too small to be valid. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // STRICT CHECK 2: File signature validation
+                                        const isValidImage = validateImageSignatureStrict(uint8Array, file.name);
+
+                                        if (!isValidImage) {
+                                            console.log('FAILED: Invalid image signature');
+                                            hideFileLoading(fileInput);
+                                            showFileError(fileInput, 'This file is not a valid image or is corrupt. Please repair the file and try again.');
+                                            $(fileInput).val('');
+                                            return;
+                                        }
+
+                                        // If binary validation passes, try to load the image
+                                        loadImageForStrictValidation(file, fileInput);
+
+                                    } catch (error) {
+                                        console.error('Image binary validation error:', error);
+                                        hideFileLoading(fileInput);
+                                        showFileError(fileInput, 'Error validating image file. The file may be corrupt. Please repair the file and try again.');
+                                        $(fileInput).val('');
+                                    }
+                                };
+
+                                reader.onerror = function() {
+                                    console.log('FileReader error - image file is corrupt');
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Unable to read the image file. The file is corrupt. Please repair the file and try again.');
+                                    $(fileInput).val('');
+                                };
+
+                                try {
+                                    reader.readAsArrayBuffer(file);
+                                } catch (error) {
+                                    console.error('Error reading image file:', error);
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Error reading image file. Please repair the file and try again.');
+                                    $(fileInput).val('');
+                                }
+                            }
+
+                            // STRICT image signature validation
+                            function validateImageSignatureStrict(uint8Array, fileName) {
+                                const fileName_lower = fileName.toLowerCase();
+
+                                console.log('Validating image signature for:', fileName_lower);
+
+                                // JPEG signatures - STRICT validation
+                                if (fileName_lower.endsWith('.jpg') || fileName_lower.endsWith('.jpeg')) {
+                                    console.log('Checking JPEG signature...');
+
+                                    // JPEG must start with FF D8 FF
+                                    if (uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8 || uint8Array[2] !== 0xFF) {
+                                        console.log('FAILED: Invalid JPEG start marker');
+                                        return false;
+                                    }
+
+                                    // Check for JPEG end marker FF D9
+                                    const hasEndMarker = uint8Array[uint8Array.length - 2] === 0xFF && uint8Array[uint8Array.length - 1] === 0xD9;
+                                    if (!hasEndMarker) {
+                                        console.log('FAILED: Missing JPEG end marker');
+                                        return false;
+                                    }
+
+                                    // Additional JPEG validation - check for JFIF or Exif marker
+                                    const header = String.fromCharCode.apply(null, uint8Array.slice(0, 20));
+                                    const hasJFIF = header.includes('JFIF');
+                                    const hasExif = header.includes('Exif');
+
+                                    if (!hasJFIF && !hasExif) {
+                                        console.log('FAILED: Missing JPEG format markers');
+                                        return false;
+                                    }
+
+                                    console.log('JPEG validation passed');
+                                    return true;
+                                }
+
+                                // PNG signatures - STRICT validation
+                                if (fileName_lower.endsWith('.png')) {
+                                    console.log('Checking PNG signature...');
+
+                                    // PNG must start with exact signature: 89 50 4E 47 0D 0A 1A 0A
+                                    const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+                                    for (let i = 0; i < pngSignature.length; i++) {
+                                        if (uint8Array[i] !== pngSignature[i]) {
+                                            console.log('FAILED: Invalid PNG signature at byte', i);
+                                            return false;
+                                        }
+                                    }
+
+                                    // Check for PNG IHDR chunk (must be first chunk)
+                                    const ihdrCheck = String.fromCharCode.apply(null, uint8Array.slice(12, 16));
+                                    if (ihdrCheck !== 'IHDR') {
+                                        console.log('FAILED: Missing PNG IHDR chunk');
+                                        return false;
+                                    }
+
+                                    // Check for PNG end chunk IEND
+                                    const endChunk = String.fromCharCode.apply(null, uint8Array.slice(-12, -4));
+                                    if (!endChunk.includes('IEND')) {
+                                        console.log('FAILED: Missing PNG IEND chunk');
+                                        return false;
+                                    }
+
+                                    console.log('PNG validation passed');
+                                    return true;
+                                }
+
+                                console.log('Unknown image type - rejecting for safety');
+                                return false; // Reject unknown types for strict validation
+                            }
+
+                            // STRICT image loading validation
+                            function loadImageForStrictValidation(file, fileInput) {
+                                const img = new Image();
+                                let url;
+
+                                try {
+                                    url = URL.createObjectURL(file);
+                                } catch (error) {
+                                    console.error('Error creating object URL:', error);
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Unable to process image file. Please try again.');
+                                    $(fileInput).val('');
+                                    return;
+                                }
+
+                                // Add timeout to prevent hanging
+                                const timeoutId = setTimeout(() => {
+                                    URL.revokeObjectURL(url);
+                                    console.log('Image loading timed out');
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Image validation timed out. The file may be corrupt. Please repair the file and try again.');
+                                    $(fileInput).val('');
+                                }, 5000); // 5 second timeout for images
+
+                                img.onload = function() {
+                                    clearTimeout(timeoutId);
+                                    URL.revokeObjectURL(url);
+
+                                    console.log('Image loaded successfully - Width:', img.width, 'Height:', img.height);
+
+                                    // STRICT validation of image dimensions
+                                    if (img.width <= 0 || img.height <= 0) {
+                                        console.log('FAILED: Invalid image dimensions');
+                                        hideFileLoading(fileInput);
+                                        showFileError(fileInput, 'This image file has invalid dimensions. Please repair the file and try again.');
+                                        $(fileInput).val('');
+                                        return;
+                                    }
+
+                                    if (img.width > 10000 || img.height > 10000) {
+                                        console.log('FAILED: Image dimensions too large');
+                                        hideFileLoading(fileInput);
+                                        showFileError(fileInput, 'This image file is too large (max 10000x10000 pixels). Please use a smaller image.');
+                                        $(fileInput).val('');
+                                        return;
+                                    }
+
+                                    // Image passed all strict validation
+                                    console.log('IMAGE VALIDATION PASSED - File appears to be valid');
+                                    hideFileLoading(fileInput);
+                                    showFileSuccess(fileInput, 'Image file validated successfully.');
+                                };
+
+                                img.onerror = function() {
+                                    clearTimeout(timeoutId);
+                                    URL.revokeObjectURL(url);
+                                    console.log('Image failed to load - file is corrupt');
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'This image file is corrupt or invalid. Please repair the file and try again.');
+                                    $(fileInput).val('');
+                                };
+
+                                try {
+                                    img.src = url;
+                                } catch (error) {
+                                    clearTimeout(timeoutId);
+                                    URL.revokeObjectURL(url);
+                                    console.error('Error setting image source:', error);
+                                    hideFileLoading(fileInput);
+                                    showFileError(fileInput, 'Error loading image file. Please try again.');
+                                    $(fileInput).val('');
+                                }
+                            }
+
+                            // Function to show file error message
+                            function showFileError(fileInput, message) {
+                                const inputId = $(fileInput).attr('id');
+                                const formId = $(fileInput).closest('form').attr('id') || 'supplementary-form';
+                                const documentContainer = $(fileInput).closest('.document-upload-item').attr('id') || 'main-document';
+                                const uniqueErrorId = `${formId}-${documentContainer}-${inputId}-error`;
+
+                                console.log('Showing error for supplementary:', inputId, 'in container:', documentContainer);
+
+                                // AGGRESSIVE CLEANUP: Remove ALL validation messages for this input ID pattern
+                                $(`[id*="${inputId}-error"], [id*="${inputId}-success"], [id*="${inputId}-loading"]`).remove();
+                                $(`.file-validation-error, .file-validation-success, .file-validation-loading`).each(function() {
+                                    const msgInput = $(this).data('input');
+                                    if (msgInput === inputId) {
+                                        console.log('Removing duplicate supplementary message for:', msgInput);
+                                        $(this).remove();
+                                    }
+                                });
+
+                                // Add error styling to input
+                                $(fileInput).removeClass('has-success').addClass('has-error');
+
+                                // Add error message below the file input with unique ID
+                                const errorHtml = `
+                                    <div id="${uniqueErrorId}" class="file-validation-error mt-2" data-form="${formId}" data-container="${documentContainer}" data-input="${inputId}">
+                                        <div class="alert alert-danger py-2 mb-0">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>File Error:</strong> ${message}
+                                        </div>
+                                    </div>
+                                `;
+
+                                $(fileInput).closest('.mb-3').append(errorHtml);
+
+                                // Add shake animation
+                                $(`#${uniqueErrorId}`).addClass('shake-animation');
+
+                                console.log('Supplementary error message added with ID:', uniqueErrorId);
+                            }
+
+                            // Function to show file success message
+                            function showFileSuccess(fileInput, message) {
+                                const inputId = $(fileInput).attr('id');
+                                const formId = $(fileInput).closest('form').attr('id') || 'supplementary-form';
+                                const documentContainer = $(fileInput).closest('.document-upload-item').attr('id') || 'main-document';
+                                const uniqueErrorId = `${formId}-${documentContainer}-${inputId}-error`;
+                                const uniqueSuccessId = `${formId}-${documentContainer}-${inputId}-success`;
+                                const uniqueLoadingId = `${formId}-${documentContainer}-${inputId}-loading`;
+
+                                // Remove any existing messages for this specific input
+                                $(`#${uniqueErrorId}, #${uniqueSuccessId}, #${uniqueLoadingId}`).remove();
+
+                                // Add success styling to input
+                                $(fileInput).removeClass('has-error').addClass('has-success');
+
+                                // Add success message below the file input
+                                const successHtml = `
+                                    <div id="${uniqueSuccessId}" class="file-validation-success mt-2" data-form="${formId}" data-container="${documentContainer}" data-input="${inputId}">
+                                        <div class="alert alert-success py-2 mb-0">
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            ${message}
+                                        </div>
+                                    </div>
+                                `;
+
+                                $(fileInput).closest('.mb-3').append(successHtml);
+
+                                // Auto-hide success message after 3 seconds
+                                setTimeout(() => {
+                                    $(`#${uniqueSuccessId}`).fadeOut(300, function() {
+                                        $(this).remove();
+                                        // Remove success styling when message disappears
+                                        $(fileInput).removeClass('has-success');
+                                    });
+                                }, 3000);
+                            }
+
+                            // Function to show file loading indicator
+                            function showFileLoading(fileInput, message) {
+                                const inputId = $(fileInput).attr('id');
+                                const formId = $(fileInput).closest('form').attr('id') || 'supplementary-form';
+                                const documentContainer = $(fileInput).closest('.document-upload-item').attr('id') || 'main-document';
+                                const uniqueLoadingId = `${formId}-${documentContainer}-${inputId}-loading`;
+
+                                // Remove any existing messages for this specific input
+                                $(`#${uniqueLoadingId}`).remove();
+
+                                // Add loading message below the file input
+                                const loadingHtml = `
+                                    <div id="${uniqueLoadingId}" class="file-validation-loading mt-2" data-form="${formId}" data-container="${documentContainer}" data-input="${inputId}">
+                                        <div class="alert alert-info py-2 mb-0">
+                                            <div class="d-flex align-items-center">
+                                                <div class="spinner-border spinner-border-sm me-2" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                                ${message}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+
+                                $(fileInput).closest('.mb-3').append(loadingHtml);
+                            }
+
+                            // Function to hide file loading indicator
+                            function hideFileLoading(fileInput) {
+                                const inputId = $(fileInput).attr('id');
+                                const formId = $(fileInput).closest('form').attr('id') || 'supplementary-form';
+                                const documentContainer = $(fileInput).closest('.document-upload-item').attr('id') || 'main-document';
+                                const uniqueLoadingId = `${formId}-${documentContainer}-${inputId}-loading`;
+                                $(`#${uniqueLoadingId}`).remove();
+                            }
                         });
                     </script>
                 </div>

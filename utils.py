@@ -38,7 +38,9 @@ def number_to_words(num):
     if paise:
         result += ' and ' + _convert_less_than_thousand(paise) + ' Paise'
 
-    return result.strip() + ' Only'
+    # Capitalize the first letter and return
+    final_result = result.strip() + ' Only'
+    return final_result.capitalize()
 
 def calculate_business_days(start_date, end_date):
     """

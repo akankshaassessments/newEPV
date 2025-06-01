@@ -115,7 +115,7 @@ function initializeOverviewCharts() {
         data: {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
             datasets: [{
-                label: 'Total Amount (₹)',
+                label: 'Total Amount (Rs.)',
                 data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                 backgroundColor: chartColors[0],
                 borderColor: chartColors[0].replace('0.7', '1'),
@@ -130,7 +130,7 @@ function initializeOverviewCharts() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₹' + value.toLocaleString();
+                            return 'Rs. ' + value.toLocaleString();
                         }
                     }
                 }
@@ -139,7 +139,7 @@ function initializeOverviewCharts() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return 'Total: ₹' + context.raw.toLocaleString();
+                            return 'Total: Rs. ' + context.raw.toLocaleString();
                         }
                     }
                 }
@@ -169,7 +169,7 @@ function initializeOverviewCharts() {
                             const value = context.raw;
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                            return `${context.label}: ₹${value.toLocaleString()} (${percentage}%)`;
+                            return `${context.label}: Rs. ${value.toLocaleString()} (${percentage}%)`;
                         }
                     }
                 }
@@ -205,7 +205,7 @@ function initializeExpenseTrendChart() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₹' + value.toLocaleString();
+                            return 'Rs. ' + value.toLocaleString();
                         }
                     }
                 }
@@ -236,7 +236,7 @@ function initializeCostCenterChart() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₹' + value.toLocaleString();
+                            return 'Rs. ' + value.toLocaleString();
                         }
                     }
                 }
@@ -245,7 +245,7 @@ function initializeCostCenterChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return 'Total: ₹' + context.raw.toLocaleString();
+                            return 'Total: Rs. ' + context.raw.toLocaleString();
                         }
                     }
                 }

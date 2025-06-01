@@ -88,7 +88,7 @@ function initializeDashboard() {
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Total Amount</h5>
-                        <h2 class="card-text">₹24,500</h2>
+                        <h2 class="card-text">Rs. 24,500</h2>
                         <small class="text-muted">This month</small>
                     </div>
                 </div>

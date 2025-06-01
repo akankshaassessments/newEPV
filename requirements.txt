@@ -1,37 +1,88 @@
-# Flask and extensions (REQUIRED)
-Flask==2.3.3
-Flask-Dance[sqla]==7.0.0
-Flask-Login==0.6.2
-Flask-SQLAlchemy==3.0.5
-Werkzeug==2.3.7
+# EPV (Expense Processing Voucher) System Requirements
+# Compatible with Python 3.13+
+# Last updated: May 31, 2025
+#
+# Installation: pip install -r requirements.txt
+#
+# Key updates for Python 3.13 compatibility:
+# - SQLAlchemy upgraded to 2.0.41 (fixes typing issues)
+# - Added greenlet for async support
+# - Updated all dependencies to latest stable versions
 
-# Database (REQUIRED)
-SQLAlchemy==2.0.20
-PyMySQL==1.1.0
-cryptography==41.0.3  # Required for PyMySQL with SSL
+# Flask and extensions (REQUIRED)
+Flask==3.0.3
+Flask-Dance==7.0.0
+Flask-Login==0.6.3
+Flask-SQLAlchemy==3.1.1
+Werkzeug==3.0.3
+
+# Database (REQUIRED) - Updated for Python 3.13 compatibility
+SQLAlchemy==2.0.41
+greenlet==3.2.2  # Required for SQLAlchemy async support
+PyMySQL==1.1.1
+cryptography==43.0.1  # Required for PyMySQL with SSL
 
 # Environment and configuration (REQUIRED)
 python-dotenv==1.0.0
 
 # Google API (REQUIRED)
-google-auth==2.22.0
-google-api-python-client==2.97.0
-google-auth-oauthlib==1.0.0
-google-auth-httplib2==0.1.0
+google-auth==2.35.0
+google-api-python-client==2.150.0
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
 
 # PDF processing (REQUIRED)
-reportlab==4.0.4
+reportlab==4.2.5
 PyPDF2==3.0.1
 pdfkit==1.0.0
 
-# Template engine (REQUIRED for pdf_converter.py)
-Jinja2>=3.1.2
+# Template engine (REQUIRED)
+Jinja2==3.1.6
+MarkupSafe==3.0.2
 
-# Utilities (automatically installed as dependencies)
-urllib3>=1.26.16,<2.0  # Compatible with google-auth
-certifi>=2023.7.22
-charset-normalizer>=3.2.0
-idna>=3.4
+# Core dependencies (automatically installed but pinned for stability)
+blinker==1.9.0
+click==8.2.1
+itsdangerous==2.2.0
+typing_extensions==4.13.2
+
+# HTTP and networking (REQUIRED)
+urllib3==1.26.20  # Compatible with google-auth
+certifi==2025.4.26
+charset-normalizer==3.4.2
+idna==3.10
+requests==2.32.3
+httplib2==0.22.0
+
+# OAuth and authentication (REQUIRED for production)
+authlib==1.3.2
+oauthlib==3.2.2
+requests-oauthlib==2.0.0
+URLObject==2.4.3
+
+# Google API dependencies
+google-api-core==2.25.0rc1
+googleapis-common-protos==1.70.0
+proto-plus==1.26.1
+protobuf==6.31.1
+uritemplate==4.1.1
+cachetools==5.5.2
+pyasn1==0.6.1
+pyasn1-modules==0.4.2
+rsa==4.9.1
+
+# Additional utilities
+pyparsing==3.2.3
+pycparser==2.22
+
+# Image processing (now included as it's being used)
+Pillow==11.2.1
+
+# Windows compatibility
+colorama==0.4.6  # For colored terminal output on Windows
+
+# Optional: Image to PDF conversion (uncomment if needed)
+# img2pdf==0.5.1  # Alternative to PIL for image conversion
 
 # Optional: Database migrations (uncomment if needed)
 # Flask-Migrate==4.0.5

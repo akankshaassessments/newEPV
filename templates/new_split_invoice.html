@@ -275,7 +275,7 @@
             const container = document.getElementById('allocations-container');
 
             const allocationHtml = `
-                <div class="allocation-row" id="allocation-${allocationIndex}">
+                <div class="allocation-row" id="allocation-${allocationIndex}" data-index="${allocationIndex}">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">Allocation ${allocationIndex + 1}</h6>
                         <button type="button" class="remove-allocation" onclick="removeAllocation(${allocationIndex})">
@@ -331,10 +331,12 @@
         }
 
         function removeAllocation(index) {
-            const allocation = document.getElementById(`allocation-${index}`);
-            if (allocation) {
-                allocation.remove();
-                updateTotals();
+            if (index !== 0) { // Don't remove the first allocation item
+                const allocation = document.getElementById(`allocation-${index}`);
+                if (allocation) {
+                    allocation.remove();
+                    updateTotals();
+                }
             }
         }
 

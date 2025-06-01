@@ -200,7 +200,7 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            ₹{{ record.total_amount }}
+                                            Rs. {{ record.total_amount }}
                                         </td>
                                         <!-- Manager Approval Status -->
                                         <td>
@@ -445,7 +445,7 @@
 
                     row.innerHTML = `
                         <td>${allocation.cost_center || '-'}</td>
-                        <td>₹${allocation.amount || '0'}</td>
+                        <td>Rs. ${allocation.amount || '0'}</td>
                         <td>${allocation.expense_head || '-'}</td>
                         <td>${allocation.approver_email || '-'}</td>
                         <td>${statusBadge}</td>

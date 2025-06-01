@@ -130,7 +130,7 @@
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
                                             <td>{{ epv.approved_on.strftime('%d-%m-%Y') if epv.approved_on else 'N/A' }}</td>
-                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>Rs. {{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 {% if epv.is_locked %}
                                                     <span class="badge bg-warning text-dark">
@@ -223,7 +223,7 @@
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
                                             <td>{{ epv.approved_on.strftime('%d-%m-%Y') if epv.approved_on else 'N/A' }}</td>
-                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>Rs. {{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 <span class="badge bg-info">
                                                     <i class="fas fa-redo me-1"></i> Resubmitted
@@ -311,7 +311,7 @@
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
                                             <td>{{ epv.approved_on.strftime('%d-%m-%Y') if epv.approved_on else 'N/A' }}</td>
-                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>Rs. {{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 <span class="badge bg-warning">
                                                     <i class="fas fa-money-bill-wave me-1"></i> Payment Pending
@@ -393,7 +393,7 @@
                                             <td>{{ epv.cost_center_name }}</td>
                                             <td>{{ epv.city if epv.city else (epv.cost_center.city if epv.cost_center else 'N/A') }}</td>
                                             <td>{{ epv.rejected_on.strftime('%d-%m-%Y') if epv.rejected_on else 'N/A' }}</td>
-                                            <td>₹{{ epv.total_amount|round(2) }}</td>
+                                            <td>Rs. {{ epv.total_amount|round(2) }}</td>
                                             <td>
                                                 <span class="badge bg-danger">
                                                     <i class="fas fa-times-circle me-1"></i> Rejected
@@ -479,7 +479,7 @@
                                             <td>{{ entry.epv.cost_center_name }}</td>
                                             <td>{{ entry.epv.city if entry.epv.city else (entry.epv.cost_center.city if entry.epv.cost_center else 'N/A') }}</td>
                                             <td>{{ entry.entry_date.strftime('%d-%m-%Y') }}</td>
-                                            <td>₹{{ entry.amount|round(2) }}</td>
+                                            <td>Rs. {{ entry.amount|round(2) }}</td>
                                             <td>
                                                 {% if entry.status == 'pending' %}
                                                 <span class="badge bg-warning">Pending Approval</span>
@@ -573,7 +573,7 @@
                                             <td>{{ entry.finance_user.name }}</td>
                                             <td>{{ entry.entry_date.strftime('%d-%m-%Y') }}</td>
                                             <td>
-                                                ₹{{ entry.amount|round(2) }}
+                                                Rs. {{ entry.amount|round(2) }}
                                                 {% if entry.is_partial_payment %}
                                                 <span class="badge bg-warning text-dark ms-1" title="Partial Payment">PARTIAL</span>
                                                 {% endif %}
@@ -655,7 +655,7 @@
                                             <td>{{ entry.finance_user.name }}</td>
                                             <td>{{ entry.approved_on.strftime('%d-%m-%Y') if entry.approved_on else '' }}</td>
                                             <td>
-                                                ₹{{ entry.amount|round(2) }}
+                                                Rs. {{ entry.amount|round(2) }}
                                                 {% if entry.is_partial_payment %}
                                                 <span class="badge bg-warning text-dark ms-1" title="Partial Payment">PARTIAL</span>
                                                 {% endif %}

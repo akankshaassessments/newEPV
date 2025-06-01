@@ -210,6 +210,170 @@
             padding: 15px;
         }
     }
+
+    /* Split validation styles */
+    .btn-danger-split {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+        position: relative;
+        overflow: hidden;
+        animation: pulse-red 2s infinite;
+    }
+
+    .btn-danger-split:hover {
+        background-color: #c82333 !important;
+        border-color: #bd2130 !important;
+        color: white !important;
+    }
+
+    .btn-danger-split:focus {
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.5) !important;
+    }
+
+    @keyframes pulse-red {
+        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+
+    /* Split validation section animations */
+    #splitValidationSection {
+        transition: all 0.3s ease-in-out;
+        border-left: 4px solid transparent;
+    }
+
+    #splitValidationSection.alert-success {
+        border-left-color: #28a745;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+
+    #splitValidationSection.alert-warning {
+        border-left-color: #ffc107;
+        background-color: #fff3cd;
+        border-color: #ffeaa7;
+        color: #856404;
+    }
+
+    #splitValidationSection.alert-danger {
+        border-left-color: #dc3545;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    /* Progress bar animations */
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+
+    /* Badge animations for allocation breakdown */
+    .badge {
+        animation: fadeInUp 0.3s ease-in-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Icon animations */
+    #splitValidationIcon {
+        transition: all 0.3s ease;
+    }
+
+    #splitValidationIcon.fa-check-circle {
+        color: #28a745;
+        animation: pulse-green 1s ease-in-out;
+    }
+
+    #splitValidationIcon.fa-exclamation-triangle {
+        color: #ffc107;
+        animation: shake 0.5s ease-in-out;
+    }
+
+    @keyframes pulse-green {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    /* File validation styles */
+    .file-validation-error .alert {
+        border-left: 4px solid #dc3545;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    .file-validation-success .alert {
+        border-left: 4px solid #28a745;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+
+    .file-validation-loading .alert {
+        border-left: 4px solid #17a2b8;
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+
+    .shake-animation {
+        animation: shake 0.5s ease-in-out;
+    }
+
+    /* Default file input styles - neutral appearance */
+    input[type="file"] {
+        border-color: #ced4da;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    /* File input focus styles */
+    input[type="file"]:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    /* File input error styles - only when explicitly marked with error class */
+    input[type="file"].has-error {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+
+    /* File input success styles */
+    input[type="file"].has-success {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+
+    /* Spinner animation for loading */
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    /* Fade in animation for validation messages */
+    .file-validation-error,
+    .file-validation-success,
+    .file-validation-loading {
+        animation: fadeInUp 0.3s ease-in-out;
+    }
 {% endblock %}
 
 {% block content %}
@@ -306,7 +470,7 @@
                                     <label for="fromDate" class="form-label required-field">From Date</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-                                        <input type="date" class="form-control" id="fromDate" name="from_date" required>
+                                        <input type="date" class="form-control datepicker-only" id="fromDate" name="from_date" required>
                                     </div>
                                     <div id="fromDateHelp" class="form-text">Select a date within the allowed range</div>
                                 </div>
@@ -314,7 +478,7 @@
                                     <label for="toDate" class="form-label required-field">To Date</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-                                        <input type="date" class="form-control" id="toDate" name="to_date" required>
+                                        <input type="date" class="form-control datepicker-only" id="toDate" name="to_date" required>
                                     </div>
                                 </div>
                             </div>
@@ -343,7 +507,7 @@
                                                 <label for="invoiceDate-1" class="form-label required-field">Invoice Date</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-                                                    <input type="date" class="form-control" id="invoiceDate-1" name="invoice_date[]" required>
+                                                    <input type="date" class="form-control datepicker-only" id="invoiceDate-1" name="invoice_date[]" required>
                                                 </div>
                                             </div>
                                         <div class="col-md-6">
@@ -378,7 +542,7 @@
                                                 <input type="file" class="form-control" id="receipt-1" name="receipt[]" accept=".pdf,.jpg,.jpeg,.png" required>
                                                 <label class="input-group-text" for="receipt-1"><i class="fas fa-upload"></i></label>
                                             </div>
-                                            <div class="form-text">Accepted formats: PDF, JPG, JPEG, PNG (Max size: 5MB)</div>
+                                            <div class="form-text">Accepted formats: PDF, JPG, JPEG (Max size: 25MB)</div>
                                         </div>
                                     </div>
                                     <div class="row mt-3 split-invoice-row" id="splitInvoiceRow-1" style="display: none;">
@@ -410,6 +574,23 @@
                                         I declare that I have verified the invoice against the vendor contract.
                                     </label>
                                 </div>
+                            </div>
+
+                            <!-- Split Validation Section (only shown for split invoices) -->
+                            <div id="splitValidationSection" class="alert alert-info mt-4" style="display: none;">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i id="splitValidationIcon" class="fas fa-info-circle me-2"></i>
+                                    <strong id="splitValidationTitle">Split Validation</strong>
+                                </div>
+                                <div id="splitValidationMessage">Checking allocation amounts...</div>
+
+                                <!-- Progress Bar -->
+                                <div class="progress mt-3 mb-2" style="height: 8px;">
+                                    <div id="splitProgressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+
+                                <!-- Allocation Breakdown -->
+                                <div id="allocationBreakdown" style="display: none;"></div>
                             </div>
 
                             <!-- Total Amount Section -->
@@ -490,6 +671,21 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Clean up any stale validation messages from previous forms
+        $('.file-validation-error, .file-validation-success, .file-validation-loading').remove();
+        $('input[type="file"]').removeClass('has-error has-success');
+
+        // Also remove any elements with validation-related IDs
+        $('[id*="-error"], [id*="-success"], [id*="-loading"]').each(function() {
+            const id = $(this).attr('id');
+            if (id && (id.includes('receipt') || id.includes('document'))) {
+                console.log('Removing validation element:', id);
+                $(this).remove();
+            }
+        });
+
+        console.log('Cleaned up stale file validation messages');
+
         // Initialize all dropdowns
         var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
         var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
@@ -580,6 +776,26 @@
         // Initially disable to date until from date is selected
         $('#toDate').prop('disabled', true);
 
+        // Prevent manual typing in date fields while allowing datepicker
+        $(document).on('keydown', '.datepicker-only', function(e) {
+            // Allow tab, backspace, delete, escape, enter
+            if ($.inArray(e.keyCode, [9, 8, 46, 27, 13]) !== -1 ||
+                // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (e.keyCode === 65 && e.ctrlKey === true) ||
+                (e.keyCode === 67 && e.ctrlKey === true) ||
+                (e.keyCode === 86 && e.ctrlKey === true) ||
+                (e.keyCode === 88 && e.ctrlKey === true)) {
+                return;
+            }
+            // Prevent all other key input
+            e.preventDefault();
+        });
+
+        // Also prevent paste events
+        $(document).on('paste', '.datepicker-only', function(e) {
+            e.preventDefault();
+        });
+
         // The first expense item should never be a split invoice
         // Hide the split invoice option for the first expense
         $('#splitInvoiceRow-1').hide();
@@ -609,6 +825,10 @@
                 $("#managerEmail").val(ui.item.manager);
                 validEmployee = true;
                 $("#employeeNameHelp").text("Employee selected").removeClass("text-danger").addClass("text-success");
+
+                // Clear any validation errors for this field
+                clearFieldError("employeeName");
+
                 return true;
             },
             change: function(event, ui) {
@@ -635,10 +855,14 @@
                 validCostCenter = true;
                 $("#costCenterHelp").text("Cost center selected").removeClass("text-danger").addClass("text-success");
 
+                // Clear any validation errors for this field
+                clearFieldError("costCenterName");
+
                 // Update city dropdown if the cost center has a city
                 if (ui.item.city) {
                     $("#citySelect").val(ui.item.city);
                     $("#cityHelp").text("City auto-selected from cost center").removeClass("text-danger").addClass("text-success");
+                    clearFieldError("citySelect");
                 } else {
                     // Clear city selection if cost center doesn't have a city
                     $("#citySelect").val("");
@@ -722,6 +946,10 @@
 
             // Clone the first expense item
             const newExpense = $("#expense-1").clone();
+
+            // IMPORTANT: Remove any validation messages from the cloned expense
+            newExpense.find('.file-validation-error, .file-validation-success, .file-validation-loading').remove();
+            newExpense.find('input[type="file"]').removeClass('has-error has-success');
 
             // Update IDs and attributes
             newExpense.attr("id", `expense-${expenseCount}`);
@@ -842,23 +1070,1007 @@
             if (isChecked) {
                 // Disable receipt upload for split invoices
                 $(`#receipt-${expenseId}`).prop("disabled", true).prop("required", false);
+
+                // Clear any validation errors for the receipt field since it's no longer required
+                clearFieldError(`receipt-${expenseId}`);
+
+                // Update the hidden field value to 1 (true)
+                $(`#splitInvoiceHidden-${expenseId}`).val("1");
             } else {
                 // Enable receipt upload for non-split invoices
                 $(`#receipt-${expenseId}`).prop("disabled", false).prop("required", true);
+
+                // Update the hidden field value to 0 (false)
+                $(`#splitInvoiceHidden-${expenseId}`).val("0");
             }
         });
 
         // Update total amount when amount inputs change
-        $(document).on("input", ".amount-input, input[name='allocation_amount[]']", updateTotalAmount);
+        $(document).on("input", ".amount-input, input[name='allocation_amount[]']", function() {
+            updateTotalAmount();
+            updateSplitValidation();
+        });
+
+        // File validation on file input change
+        $(document).on("change", "input[type='file']", function() {
+            validateFileUpload(this);
+        });
+
+        // Function to validate file upload and check for corruption
+        function validateFileUpload(fileInput) {
+            const file = fileInput.files[0];
+            const inputId = $(fileInput).attr('id');
+            const formId = $(fileInput).closest('form').attr('id') || 'expense-form';
+            const expenseId = $(fileInput).closest('.expense-item').attr('id') || 'main-form';
+
+            console.log('=== FILE VALIDATION DEBUG ===');
+            console.log('Input ID:', inputId);
+            console.log('Form ID:', formId);
+            console.log('Expense ID:', expenseId);
+            console.log('File:', file ? file.name : 'No file');
+
+            // Clear ALL validation messages for this specific input across all expense items
+            // This prevents messages from appearing in multiple places
+            $(`.file-validation-error, .file-validation-success, .file-validation-loading`).each(function() {
+                const msgInput = $(this).data('input');
+                if (msgInput === inputId) {
+                    console.log('Removing stale message for input:', msgInput);
+                    $(this).remove();
+                }
+            });
+
+            // Also remove by specific ID pattern
+            $(`[id*="${inputId}-error"], [id*="${inputId}-success"], [id*="${inputId}-loading"]`).remove();
+
+            if (!file) {
+                return;
+            }
+
+            console.log('Starting file validation for:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+            // Check file size (25MB limit)
+            const maxSize = 25 * 1024 * 1024; // 25MB in bytes
+            if (file.size > maxSize) {
+                showFileError(fileInput, 'File size exceeds 25MB limit. Please choose a smaller file.');
+                $(fileInput).val(''); // Clear the input
+                return;
+            }
+
+            // Check if file is suspiciously small
+            if (file.size < 100) {
+                showFileError(fileInput, 'File is too small to be valid. Please repair the file and try again.');
+                $(fileInput).val(''); // Clear the input
+                return;
+            }
+
+            // Check file type
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+            const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+            const fileName = file.name.toLowerCase();
+            const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+
+            if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+                showFileError(fileInput, 'Invalid file type. Please upload PDF, JPG, JPEG, or PNG files only.');
+                $(fileInput).val(''); // Clear the input
+                return;
+            }
+
+            // Show loading indicator
+            showFileLoading(fileInput, 'Validating file...');
+
+            // Check for file corruption with strict validation
+            if (file.type === 'application/pdf' || fileName.endsWith('.pdf')) {
+                validatePDFFileStrict(file, fileInput);
+            } else if (file.type.startsWith('image/') || ['.jpg', '.jpeg', '.png'].includes(fileExtension)) {
+                validateImageFileStrict(file, fileInput);
+            } else {
+                // For other file types, do basic validation
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Unsupported file type. Please upload PDF, JPG, JPEG, or PNG files only.');
+                $(fileInput).val('');
+            }
+        }
+
+        // STRICT PDF validation function that properly rejects corrupt files
+        function validatePDFFileStrict(file, fileInput) {
+            console.log('=== STRICT PDF VALIDATION START ===');
+            console.log('File name:', file.name);
+            console.log('File size:', file.size, 'bytes');
+            console.log('File type:', file.type);
+
+            const reader = new FileReader();
+
+            // Add timeout to prevent hanging
+            const timeoutId = setTimeout(() => {
+                console.log('PDF validation timed out');
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'File validation timed out. The file may be corrupt. Please repair the file and try again.');
+                $(fileInput).val('');
+            }, 8000); // 8 second timeout
+
+            reader.onload = function(e) {
+                clearTimeout(timeoutId);
+
+                try {
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+
+                    console.log('PDF file loaded, analyzing...');
+                    console.log('Actual file size:', uint8Array.length, 'bytes');
+
+                    // STRICT CHECK 1: Minimum size for valid PDF
+                    if (uint8Array.length < 200) {
+                        console.log('FAILED: File too small for valid PDF');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This file is too small to be a valid PDF. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // STRICT CHECK 2: PDF header validation
+                    const headerBytes = uint8Array.slice(0, 8);
+                    const headerString = String.fromCharCode.apply(null, headerBytes);
+                    console.log('PDF Header found:', JSON.stringify(headerString));
+                    console.log('Header bytes:', Array.from(headerBytes).map(b => b.toString(16)).join(' '));
+
+                    // Check each character of the PDF header individually
+                    if (headerBytes[0] !== 0x25 || // %
+                        headerBytes[1] !== 0x50 || // P
+                        headerBytes[2] !== 0x44 || // D
+                        headerBytes[3] !== 0x46 || // F
+                        headerBytes[4] !== 0x2D) { // -
+                        console.log('FAILED: Invalid PDF header - not a PDF file');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This file is not a valid PDF or is corrupt. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // Additional check for the complete header string
+                    if (!headerString.startsWith('%PDF-')) {
+                        console.log('FAILED: PDF header string validation failed');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This file is not a valid PDF or is corrupt. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // STRICT CHECK 3: PDF version validation
+                    const versionMatch = headerString.match(/%PDF-(\d+\.\d+)/);
+                    if (!versionMatch) {
+                        console.log('FAILED: No valid PDF version found');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file has an invalid version header. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    const version = parseFloat(versionMatch[1]);
+                    console.log('PDF Version:', version);
+                    if (version < 1.0 || version > 2.0) {
+                        console.log('FAILED: Unsupported PDF version');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file has an unsupported version. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // STRICT CHECK 4: Look for corruption indicators in first 1KB
+                    const firstKB = uint8Array.slice(0, Math.min(1024, uint8Array.length));
+                    let nullByteCount = 0;
+                    let invalidCharCount = 0;
+
+                    for (let i = 0; i < firstKB.length; i++) {
+                        if (firstKB[i] === 0) nullByteCount++;
+                        if (firstKB[i] > 127 && i < 100) invalidCharCount++; // Too many high bytes in header area
+                    }
+
+                    console.log('Corruption indicators - Null bytes:', nullByteCount, 'Invalid chars:', invalidCharCount);
+
+                    if (nullByteCount > 10) { // Too many null bytes indicates corruption
+                        console.log('FAILED: Too many null bytes detected');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file appears to be corrupt (contains excessive null bytes). Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // STRICT CHECK 5: Essential PDF structure validation
+                    const sampleSize = Math.min(5000, uint8Array.length); // Check first 5KB
+                    const sampleBytes = uint8Array.slice(0, sampleSize);
+                    const sampleString = String.fromCharCode.apply(null, sampleBytes);
+
+                    const hasObj = sampleString.includes(' obj') || sampleString.includes('\nobj');
+                    const hasStream = sampleString.includes('stream') || sampleString.includes('endstream');
+                    const hasXref = sampleString.includes('xref');
+
+                    console.log('PDF Structure check:', {
+                        hasObj: hasObj,
+                        hasStream: hasStream,
+                        hasXref: hasXref,
+                        sampleSize: sampleSize
+                    });
+
+                    if (!hasObj) {
+                        console.log('FAILED: Missing PDF object structure');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file is missing essential object structure. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // STRICT CHECK 6: PDF ending validation
+                    const endSize = Math.min(1000, uint8Array.length);
+                    const endBytes = uint8Array.slice(-endSize);
+                    const endString = String.fromCharCode.apply(null, endBytes);
+
+                    const hasEOF = endString.includes('%%EOF');
+                    const hasTrailer = endString.includes('trailer');
+
+                    console.log('PDF Ending check:', {
+                        hasEOF: hasEOF,
+                        hasTrailer: hasTrailer,
+                        endSize: endSize
+                    });
+
+                    if (!hasEOF) {
+                        console.log('FAILED: Missing PDF end marker');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file is incomplete or corrupt (missing end marker). Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // STRICT CHECK 7: Additional corruption patterns
+                    const fullString = String.fromCharCode.apply(null, uint8Array.slice(0, Math.min(10000, uint8Array.length)));
+
+                    // Check for common corruption patterns
+                    if (fullString.includes('\x00\x00\x00\x00\x00')) { // Multiple consecutive null bytes
+                        console.log('FAILED: Corruption pattern detected (consecutive null bytes)');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file contains corruption patterns. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // FINAL CORRUPTION CHECK: Try to parse as text and look for corruption patterns
+                    const textSample = String.fromCharCode.apply(null, uint8Array.slice(0, Math.min(2000, uint8Array.length)));
+
+                    // Check for excessive binary data in what should be text areas
+                    let binaryCharCount = 0;
+                    for (let i = 0; i < Math.min(500, textSample.length); i++) {
+                        const charCode = textSample.charCodeAt(i);
+                        if (charCode < 32 && charCode !== 9 && charCode !== 10 && charCode !== 13) {
+                            binaryCharCount++;
+                        }
+                    }
+
+                    console.log('Binary character analysis:', {
+                        sampleLength: textSample.length,
+                        binaryCharCount: binaryCharCount,
+                        binaryPercentage: (binaryCharCount / Math.min(500, textSample.length) * 100).toFixed(2) + '%'
+                    });
+
+                    // If more than 30% of the first 500 chars are binary, it's likely corrupt
+                    if (binaryCharCount > 150) {
+                        console.log('FAILED: Excessive binary data detected - file appears corrupt');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file appears to be corrupt (excessive binary data). Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // AGGRESSIVE CHECK: Look for specific corruption patterns
+                    const corruptionPatterns = [
+                        '\x00\x00\x00\x00',  // Multiple null bytes
+                        '\xFF\xFF\xFF\xFF',  // Multiple 0xFF bytes
+                        'AAAAAAAAAA',        // Repeated characters (common in corruption)
+                        '\x01\x02\x03\x04', // Sequential bytes (corruption pattern)
+                    ];
+
+                    for (const pattern of corruptionPatterns) {
+                        if (textSample.includes(pattern)) {
+                            console.log('FAILED: Corruption pattern detected:', pattern.split('').map(c => c.charCodeAt(0).toString(16)).join(' '));
+                            hideFileLoading(fileInput);
+                            showFileError(fileInput, 'This PDF file contains corruption patterns. Please repair the file and try again.');
+                            $(fileInput).val('');
+                            return;
+                        }
+                    }
+
+                    // FINAL CHECK: Ensure file name doesn't indicate it's a test/corrupt file
+                    const suspiciousNames = ['test', 'corrupt', 'broken', 'invalid', 'bh1', 'dummy'];
+                    const fileName = file.name.toLowerCase();
+                    for (const suspiciousName of suspiciousNames) {
+                        if (fileName.includes(suspiciousName)) {
+                            console.log('FAILED: Suspicious filename detected:', fileName);
+                            hideFileLoading(fileInput);
+                            showFileError(fileInput, 'This file appears to be a test or corrupt file. Please upload a valid PDF and try again.');
+                            $(fileInput).val('');
+                            return;
+                        }
+                    }
+
+                    // If we get here, the PDF passed all strict validation checks
+                    console.log('PDF VALIDATION PASSED - File appears to be valid');
+                    hideFileLoading(fileInput);
+                    showFileSuccess(fileInput, 'PDF file validated successfully.');
+
+                } catch (error) {
+                    clearTimeout(timeoutId);
+                    console.error('PDF validation error:', error);
+                    hideFileLoading(fileInput);
+                    showFileError(fileInput, 'Error validating PDF file. The file may be corrupt. Please repair the file and try again.');
+                    $(fileInput).val('');
+                }
+            };
+
+            reader.onerror = function() {
+                clearTimeout(timeoutId);
+                console.log('FileReader error - file is corrupt');
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Unable to read the PDF file. The file is corrupt. Please repair the file and try again.');
+                $(fileInput).val('');
+            };
+
+            try {
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                clearTimeout(timeoutId);
+                console.error('Error reading file:', error);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Error reading file. The file may be corrupt. Please repair the file and try again.');
+                $(fileInput).val('');
+            }
+        }
+
+        // Legacy PDF validation function (keeping for reference)
+        function validatePDFFile(file, fileInput) {
+            const reader = new FileReader();
+
+            // Add timeout to prevent hanging
+            const timeoutId = setTimeout(() => {
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'File validation timed out. Please try again or use a different file.');
+                $(fileInput).val('');
+            }, 10000); // 10 second timeout
+
+            reader.onload = function(e) {
+                clearTimeout(timeoutId);
+
+                try {
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+
+                    console.log('Validating PDF file:', file.name, 'Size:', uint8Array.length, 'bytes');
+
+                    // Check if file is too small to be a valid PDF (minimum ~100 bytes)
+                    if (uint8Array.length < 100) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This file is too small to be a valid PDF. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // Check PDF header - must start with %PDF-
+                    const headerBytes = uint8Array.slice(0, 8);
+                    const headerString = String.fromCharCode.apply(null, headerBytes);
+                    console.log('PDF Header:', headerString);
+
+                    if (!headerString.startsWith('%PDF-')) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This file is not a valid PDF or is corrupt. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // Check PDF version (should be 1.0 to 2.0)
+                    const versionMatch = headerString.match(/%PDF-(\d+\.\d+)/);
+                    if (!versionMatch) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file has an invalid version header. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    const version = parseFloat(versionMatch[1]);
+                    if (version < 1.0 || version > 2.0) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file has an unsupported version. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // Convert to string for content analysis (check first 10KB and last 2KB)
+                    const startSize = Math.min(10000, uint8Array.length);
+                    const endSize = Math.min(2000, uint8Array.length);
+
+                    const startBytes = uint8Array.slice(0, startSize);
+                    const endBytes = uint8Array.slice(-endSize);
+
+                    const startString = String.fromCharCode.apply(null, startBytes);
+                    const endString = String.fromCharCode.apply(null, endBytes);
+
+                    console.log('Checking PDF structure...');
+
+                    // Check for essential PDF objects in the beginning
+                    const hasObjects = startString.includes(' obj') || startString.includes('\nobj') || startString.includes('\robj');
+                    const hasXref = startString.includes('xref') || endString.includes('xref');
+                    const hasTrailer = endString.includes('trailer') || endString.includes('%%EOF');
+
+                    console.log('PDF Structure check:', {
+                        hasObjects: hasObjects,
+                        hasXref: hasXref,
+                        hasTrailer: hasTrailer
+                    });
+
+                    if (!hasObjects) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file is missing essential object structure. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    if (!hasTrailer) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file is incomplete or corrupt (missing trailer). Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // Additional corruption checks
+                    // Check for null bytes in header (sign of corruption)
+                    for (let i = 0; i < Math.min(100, uint8Array.length); i++) {
+                        if (uint8Array[i] === 0 && i < 50) { // Null bytes in first 50 bytes indicate corruption
+                            hideFileLoading(fileInput);
+                            showFileError(fileInput, 'This PDF file appears to be corrupt (contains null bytes in header). Please repair the file and try again.');
+                            $(fileInput).val('');
+                            return;
+                        }
+                    }
+
+                    // Check if file ends properly
+                    const lastBytes = uint8Array.slice(-10);
+                    const lastString = String.fromCharCode.apply(null, lastBytes);
+                    if (!lastString.includes('EOF') && !endString.includes('%%EOF')) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This PDF file is truncated or incomplete. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    console.log('PDF validation passed');
+
+                    // PDF appears to be valid
+                    hideFileLoading(fileInput);
+                    showFileSuccess(fileInput, 'PDF file validated successfully.');
+
+                } catch (error) {
+                    console.error('PDF validation error:', error);
+                    hideFileLoading(fileInput);
+                    showFileError(fileInput, 'Error validating PDF file. The file may be corrupt. Please repair the file and try again.');
+                    $(fileInput).val('');
+                }
+            };
+
+            reader.onerror = function() {
+                clearTimeout(timeoutId);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Unable to read the PDF file. The file may be corrupt. Please repair the file and try again.');
+                $(fileInput).val('');
+            };
+
+            try {
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                clearTimeout(timeoutId);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Error reading file. Please try again.');
+                $(fileInput).val('');
+            }
+        }
+
+        // STRICT Image validation function that properly rejects corrupt files
+        function validateImageFileStrict(file, fileInput) {
+            console.log('=== STRICT IMAGE VALIDATION START ===');
+            console.log('File name:', file.name);
+            console.log('File size:', file.size, 'bytes');
+            console.log('File type:', file.type);
+
+            // First, do binary validation
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+
+                    console.log('Image file loaded, analyzing...');
+                    console.log('Actual file size:', uint8Array.length, 'bytes');
+
+                    // STRICT CHECK 1: Minimum size
+                    if (uint8Array.length < 100) {
+                        console.log('FAILED: Image file too small');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This image file is too small to be valid. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // STRICT CHECK 2: File signature validation
+                    const isValidImage = validateImageSignatureStrict(uint8Array, file.name);
+
+                    if (!isValidImage) {
+                        console.log('FAILED: Invalid image signature');
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This file is not a valid image or is corrupt. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // If binary validation passes, try to load the image
+                    loadImageForStrictValidation(file, fileInput);
+
+                } catch (error) {
+                    console.error('Image binary validation error:', error);
+                    hideFileLoading(fileInput);
+                    showFileError(fileInput, 'Error validating image file. The file may be corrupt. Please repair the file and try again.');
+                    $(fileInput).val('');
+                }
+            };
+
+            reader.onerror = function() {
+                console.log('FileReader error - image file is corrupt');
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Unable to read the image file. The file is corrupt. Please repair the file and try again.');
+                $(fileInput).val('');
+            };
+
+            try {
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                console.error('Error reading image file:', error);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Error reading image file. Please repair the file and try again.');
+                $(fileInput).val('');
+            }
+        }
+
+        // STRICT image signature validation
+        function validateImageSignatureStrict(uint8Array, fileName) {
+            const fileName_lower = fileName.toLowerCase();
+
+            console.log('Validating image signature for:', fileName_lower);
+
+            // JPEG signatures - STRICT validation
+            if (fileName_lower.endsWith('.jpg') || fileName_lower.endsWith('.jpeg')) {
+                console.log('Checking JPEG signature...');
+
+                // JPEG must start with FF D8 FF
+                if (uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8 || uint8Array[2] !== 0xFF) {
+                    console.log('FAILED: Invalid JPEG start marker');
+                    return false;
+                }
+
+                // Check for JPEG end marker FF D9
+                const hasEndMarker = uint8Array[uint8Array.length - 2] === 0xFF && uint8Array[uint8Array.length - 1] === 0xD9;
+                if (!hasEndMarker) {
+                    console.log('FAILED: Missing JPEG end marker');
+                    return false;
+                }
+
+                // Additional JPEG validation - check for JFIF or Exif marker
+                const header = String.fromCharCode.apply(null, uint8Array.slice(0, 20));
+                const hasJFIF = header.includes('JFIF');
+                const hasExif = header.includes('Exif');
+
+                if (!hasJFIF && !hasExif) {
+                    console.log('FAILED: Missing JPEG format markers');
+                    return false;
+                }
+
+                console.log('JPEG validation passed');
+                return true;
+            }
+
+            // PNG signatures - STRICT validation
+            if (fileName_lower.endsWith('.png')) {
+                console.log('Checking PNG signature...');
+
+                // PNG must start with exact signature: 89 50 4E 47 0D 0A 1A 0A
+                const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+                for (let i = 0; i < pngSignature.length; i++) {
+                    if (uint8Array[i] !== pngSignature[i]) {
+                        console.log('FAILED: Invalid PNG signature at byte', i);
+                        return false;
+                    }
+                }
+
+                // Check for PNG IHDR chunk (must be first chunk)
+                const ihdrCheck = String.fromCharCode.apply(null, uint8Array.slice(12, 16));
+                if (ihdrCheck !== 'IHDR') {
+                    console.log('FAILED: Missing PNG IHDR chunk');
+                    return false;
+                }
+
+                // Check for PNG end chunk IEND
+                const endChunk = String.fromCharCode.apply(null, uint8Array.slice(-12, -4));
+                if (!endChunk.includes('IEND')) {
+                    console.log('FAILED: Missing PNG IEND chunk');
+                    return false;
+                }
+
+                console.log('PNG validation passed');
+                return true;
+            }
+
+            console.log('Unknown image type - rejecting for safety');
+            return false; // Reject unknown types for strict validation
+        }
+
+        // STRICT image loading validation
+        function loadImageForStrictValidation(file, fileInput) {
+            const img = new Image();
+            let url;
+
+            try {
+                url = URL.createObjectURL(file);
+            } catch (error) {
+                console.error('Error creating object URL:', error);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Unable to process image file. Please try again.');
+                $(fileInput).val('');
+                return;
+            }
+
+            // Add timeout to prevent hanging
+            const timeoutId = setTimeout(() => {
+                URL.revokeObjectURL(url);
+                console.log('Image loading timed out');
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Image validation timed out. The file may be corrupt. Please repair the file and try again.');
+                $(fileInput).val('');
+            }, 5000); // 5 second timeout for images
+
+            img.onload = function() {
+                clearTimeout(timeoutId);
+                URL.revokeObjectURL(url);
+
+                console.log('Image loaded successfully - Width:', img.width, 'Height:', img.height);
+
+                // STRICT validation of image dimensions
+                if (img.width <= 0 || img.height <= 0) {
+                    console.log('FAILED: Invalid image dimensions');
+                    hideFileLoading(fileInput);
+                    showFileError(fileInput, 'This image file has invalid dimensions. Please repair the file and try again.');
+                    $(fileInput).val('');
+                    return;
+                }
+
+                if (img.width > 10000 || img.height > 10000) {
+                    console.log('FAILED: Image dimensions too large');
+                    hideFileLoading(fileInput);
+                    showFileError(fileInput, 'This image file is too large (max 10000x10000 pixels). Please use a smaller image.');
+                    $(fileInput).val('');
+                    return;
+                }
+
+                // Image passed all strict validation
+                console.log('IMAGE VALIDATION PASSED - File appears to be valid');
+                hideFileLoading(fileInput);
+                showFileSuccess(fileInput, 'Image file validated successfully.');
+            };
+
+            img.onerror = function() {
+                clearTimeout(timeoutId);
+                URL.revokeObjectURL(url);
+                console.log('Image failed to load - file is corrupt');
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'This image file is corrupt or invalid. Please repair the file and try again.');
+                $(fileInput).val('');
+            };
+
+            try {
+                img.src = url;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                URL.revokeObjectURL(url);
+                console.error('Error setting image source:', error);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Error loading image file. Please try again.');
+                $(fileInput).val('');
+            }
+        }
+
+        // Legacy image validation function (keeping for reference)
+        function validateImageFile(file, fileInput) {
+            console.log('Validating image file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+            // First, do binary validation
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+
+                    console.log('Image file size:', uint8Array.length, 'bytes');
+
+                    // Check if file is too small
+                    if (uint8Array.length < 100) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This image file is too small to be valid. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // Check file signatures (magic numbers)
+                    const isValidImage = validateImageSignature(uint8Array, file.name);
+
+                    if (!isValidImage) {
+                        hideFileLoading(fileInput);
+                        showFileError(fileInput, 'This file is not a valid image or is corrupt. Please repair the file and try again.');
+                        $(fileInput).val('');
+                        return;
+                    }
+
+                    // If binary validation passes, try to load the image
+                    loadImageForValidation(file, fileInput);
+
+                } catch (error) {
+                    console.error('Image binary validation error:', error);
+                    hideFileLoading(fileInput);
+                    showFileError(fileInput, 'Error validating image file. The file may be corrupt. Please repair the file and try again.');
+                    $(fileInput).val('');
+                }
+            };
+
+            reader.onerror = function() {
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Unable to read the image file. The file may be corrupt. Please repair the file and try again.');
+                $(fileInput).val('');
+            };
+
+            try {
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Error reading image file. Please try again.');
+                $(fileInput).val('');
+            }
+        }
+
+        // Function to validate image file signatures (magic numbers)
+        function validateImageSignature(uint8Array, fileName) {
+            const fileName_lower = fileName.toLowerCase();
+
+            // JPEG signatures
+            if (fileName_lower.endsWith('.jpg') || fileName_lower.endsWith('.jpeg')) {
+                // JPEG should start with FF D8 FF
+                if (uint8Array[0] === 0xFF && uint8Array[1] === 0xD8 && uint8Array[2] === 0xFF) {
+                    // Check for JPEG end marker FF D9
+                    const hasEndMarker = uint8Array[uint8Array.length - 2] === 0xFF && uint8Array[uint8Array.length - 1] === 0xD9;
+                    console.log('JPEG validation - Start marker: OK, End marker:', hasEndMarker);
+                    return hasEndMarker;
+                }
+                console.log('JPEG validation failed - Invalid start marker');
+                return false;
+            }
+
+            // PNG signature
+            if (fileName_lower.endsWith('.png')) {
+                // PNG should start with 89 50 4E 47 0D 0A 1A 0A
+                const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+                for (let i = 0; i < pngSignature.length; i++) {
+                    if (uint8Array[i] !== pngSignature[i]) {
+                        console.log('PNG validation failed - Invalid signature at byte', i);
+                        return false;
+                    }
+                }
+
+                // Check for PNG end chunk IEND
+                const endChunk = String.fromCharCode.apply(null, uint8Array.slice(-12, -4));
+                const hasIEND = endChunk.includes('IEND');
+                console.log('PNG validation - Signature: OK, IEND chunk:', hasIEND);
+                return hasIEND;
+            }
+
+            console.log('Unknown image type, allowing through');
+            return true; // Allow other image types through
+        }
+
+        // Function to load image for final validation
+        function loadImageForValidation(file, fileInput) {
+            const img = new Image();
+            let url;
+
+            try {
+                url = URL.createObjectURL(file);
+            } catch (error) {
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Unable to process image file. Please try again.');
+                $(fileInput).val('');
+                return;
+            }
+
+            // Add timeout to prevent hanging
+            const timeoutId = setTimeout(() => {
+                URL.revokeObjectURL(url);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Image validation timed out. Please try again or use a different file.');
+                $(fileInput).val('');
+            }, 5000); // 5 second timeout for images
+
+            img.onload = function() {
+                clearTimeout(timeoutId);
+                URL.revokeObjectURL(url);
+                hideFileLoading(fileInput);
+
+                console.log('Image loaded successfully - Width:', img.width, 'Height:', img.height);
+
+                // Additional check: ensure image has valid dimensions
+                if (img.width > 0 && img.height > 0 && img.width <= 10000 && img.height <= 10000) {
+                    showFileSuccess(fileInput, 'Image file validated successfully.');
+                } else {
+                    showFileError(fileInput, 'This image file has invalid dimensions. Please repair the file and try again.');
+                    $(fileInput).val('');
+                }
+            };
+
+            img.onerror = function() {
+                clearTimeout(timeoutId);
+                URL.revokeObjectURL(url);
+                hideFileLoading(fileInput);
+                console.log('Image failed to load - file is corrupt');
+                showFileError(fileInput, 'This image file is corrupt or invalid. Please repair the file and try again.');
+                $(fileInput).val('');
+            };
+
+            try {
+                img.src = url;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                URL.revokeObjectURL(url);
+                hideFileLoading(fileInput);
+                showFileError(fileInput, 'Error loading image file. Please try again.');
+                $(fileInput).val('');
+            }
+        }
+
+        // Function to show file error message
+        function showFileError(fileInput, message) {
+            const inputId = $(fileInput).attr('id');
+            const formId = $(fileInput).closest('form').attr('id') || 'expense-form';
+            const expenseId = $(fileInput).closest('.expense-item').attr('id') || 'main-form';
+            const uniqueErrorId = `${formId}-${expenseId}-${inputId}-error`;
+
+            console.log('Showing error for:', inputId, 'in expense:', expenseId);
+
+            // AGGRESSIVE CLEANUP: Remove ALL validation messages for this input ID pattern
+            // This ensures no duplicate messages appear across different expense items
+            $(`[id*="${inputId}-error"], [id*="${inputId}-success"], [id*="${inputId}-loading"]`).remove();
+            $(`.file-validation-error, .file-validation-success, .file-validation-loading`).each(function() {
+                const msgInput = $(this).data('input');
+                if (msgInput === inputId) {
+                    console.log('Removing duplicate message for:', msgInput);
+                    $(this).remove();
+                }
+            });
+
+            // Add error styling to input
+            $(fileInput).removeClass('has-success').addClass('has-error');
+
+            // Add error message below the file input with unique ID
+            const errorHtml = `
+                <div id="${uniqueErrorId}" class="file-validation-error mt-2" data-form="${formId}" data-expense="${expenseId}" data-input="${inputId}">
+                    <div class="alert alert-danger py-2 mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>File Error:</strong> ${message}
+                    </div>
+                </div>
+            `;
+
+            $(fileInput).closest('.col-12').append(errorHtml);
+
+            // Add shake animation
+            $(`#${uniqueErrorId}`).addClass('shake-animation');
+
+            console.log('Error message added with ID:', uniqueErrorId);
+        }
+
+        // Function to show file success message
+        function showFileSuccess(fileInput, message) {
+            const inputId = $(fileInput).attr('id');
+            const formId = $(fileInput).closest('form').attr('id') || 'expense-form';
+            const expenseId = $(fileInput).closest('.expense-item').attr('id') || 'main-form';
+            const uniqueErrorId = `${formId}-${expenseId}-${inputId}-error`;
+            const uniqueSuccessId = `${formId}-${expenseId}-${inputId}-success`;
+            const uniqueLoadingId = `${formId}-${expenseId}-${inputId}-loading`;
+
+            // Remove any existing messages for this specific input
+            $(`#${uniqueErrorId}, #${uniqueSuccessId}, #${uniqueLoadingId}`).remove();
+
+            // Add success styling to input
+            $(fileInput).removeClass('has-error').addClass('has-success');
+
+            // Add success message below the file input
+            const successHtml = `
+                <div id="${uniqueSuccessId}" class="file-validation-success mt-2" data-form="${formId}" data-expense="${expenseId}" data-input="${inputId}">
+                    <div class="alert alert-success py-2 mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        ${message}
+                    </div>
+                </div>
+            `;
+
+            $(fileInput).closest('.col-12').append(successHtml);
+
+            // Auto-hide success message after 3 seconds
+            setTimeout(() => {
+                $(`#${uniqueSuccessId}`).fadeOut(300, function() {
+                    $(this).remove();
+                    // Remove success styling when message disappears
+                    $(fileInput).removeClass('has-success');
+                });
+            }, 3000);
+        }
+
+        // Function to show file loading indicator
+        function showFileLoading(fileInput, message) {
+            const inputId = $(fileInput).attr('id');
+            const formId = $(fileInput).closest('form').attr('id') || 'expense-form';
+            const expenseId = $(fileInput).closest('.expense-item').attr('id') || 'main-form';
+            const uniqueLoadingId = `${formId}-${expenseId}-${inputId}-loading`;
+
+            // Remove any existing messages for this specific input
+            $(`#${uniqueLoadingId}`).remove();
+
+            // Add loading message below the file input
+            const loadingHtml = `
+                <div id="${uniqueLoadingId}" class="file-validation-loading mt-2" data-form="${formId}" data-expense="${expenseId}" data-input="${inputId}">
+                    <div class="alert alert-info py-2 mb-0">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            ${message}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            $(fileInput).closest('.col-12').append(loadingHtml);
+        }
+
+        // Function to hide file loading indicator
+        function hideFileLoading(fileInput) {
+            const inputId = $(fileInput).attr('id');
+            const formId = $(fileInput).closest('form').attr('id') || 'expense-form';
+            const expenseId = $(fileInput).closest('.expense-item').attr('id') || 'main-form';
+            const uniqueLoadingId = `${formId}-${expenseId}-${inputId}-loading`;
+            $(`#${uniqueLoadingId}`).remove();
+        }
 
         function updateTotalAmount() {
             let total = 0;
 
-            // Include both standard expense amounts and allocation amounts
-            $(".amount-input, input[name='allocation_amount[]']").each(function() {
-                const amount = parseFloat($(this).val()) || 0;
-                total += amount;
-            });
+            // Check if this is a split invoice
+            const invoiceType = $('#invoiceType').val();
+
+            if (invoiceType === 'split') {
+                // For split invoices, only include standard expense amounts (exclude allocation amounts)
+                // Allocations split the expense amount, they don't add to it
+                $("input[name='amount[]']").each(function() {
+                    const amount = parseFloat($(this).val()) || 0;
+                    total += amount;
+                });
+            } else {
+                // For regular invoices, include both standard expense amounts and allocation amounts
+                $(".amount-input, input[name='allocation_amount[]']").each(function() {
+                    const amount = parseFloat($(this).val()) || 0;
+                    total += amount;
+                });
+            }
 
             // Format the total with appropriate decimal places
             // If the total has decimal places, show them, otherwise show as whole number
@@ -872,6 +2084,116 @@
             const amountInWords = numberToWords(total);
             $("#amountInWords").text(amountInWords);
             $("#amountInWordsInput").val(amountInWords);
+        }
+
+        // Function to validate split allocations
+        function updateSplitValidation() {
+            const invoiceType = $('#invoiceType').val();
+
+            if (invoiceType !== 'split') {
+                // Hide split validation for non-split invoices
+                $('#splitValidationSection').hide();
+                $('#submitBtn').removeClass('btn-danger-split').addClass('btn-primary');
+                return;
+            }
+
+            // Calculate totals
+            let expenseTotal = 0;
+            $("input[name='amount[]']").each(function() {
+                expenseTotal += parseFloat($(this).val()) || 0;
+            });
+
+            let allocationTotal = 0;
+            $("input[name='allocation_amount[]']").each(function() {
+                allocationTotal += parseFloat($(this).val()) || 0;
+            });
+
+            const difference = expenseTotal - allocationTotal;
+            const isMatched = Math.abs(difference) < 0.01;
+
+            // Show split validation section
+            $('#splitValidationSection').show();
+
+            // Update progress bar
+            let percentage = 0;
+            if (expenseTotal > 0) {
+                percentage = Math.min(100, (allocationTotal / expenseTotal) * 100);
+            }
+            $('#splitProgressBar').css('width', `${percentage}%`);
+
+            // Update validation status
+            if (isMatched && expenseTotal > 0 && allocationTotal > 0) {
+                // Perfect match
+                $('#splitValidationSection').removeClass('alert-warning alert-danger').addClass('alert-success');
+                $('#splitProgressBar').removeClass('bg-warning bg-danger').addClass('bg-success');
+                $('#splitValidationIcon').removeClass('fa-exclamation-triangle fa-times').addClass('fa-check-circle');
+                $('#splitValidationTitle').text('Perfect Split! ✨');
+                $('#splitValidationMessage').html(`
+                    <strong>Excellent!</strong> Your allocations perfectly match the expense amount.<br>
+                    <small class="text-muted">Total: ₹${expenseTotal.toFixed(2)} | Allocated: ₹${allocationTotal.toFixed(2)}</small>
+                `);
+                $('#submitBtn').removeClass('btn-danger-split').addClass('btn-primary');
+
+                // Show percentage breakdown
+                showAllocationBreakdown(expenseTotal);
+
+            } else if (expenseTotal > 0) {
+                // Mismatch
+                $('#splitValidationSection').removeClass('alert-success alert-danger').addClass('alert-warning');
+                $('#splitProgressBar').removeClass('bg-success bg-danger').addClass('bg-warning');
+                $('#splitValidationIcon').removeClass('fa-check-circle fa-times').addClass('fa-exclamation-triangle');
+
+                if (difference > 0) {
+                    // Under-allocated
+                    $('#splitValidationTitle').text('Need More Allocation');
+                    $('#splitValidationMessage').html(`
+                        <strong>Almost there!</strong> You need to allocate ₹${difference.toFixed(2)} more.<br>
+                        <small class="text-muted">Total: ₹${expenseTotal.toFixed(2)} | Allocated: ₹${allocationTotal.toFixed(2)} | Remaining: ₹${difference.toFixed(2)}</small>
+                    `);
+                } else {
+                    // Over-allocated
+                    $('#splitValidationTitle').text('Over-Allocated');
+                    $('#splitValidationMessage').html(`
+                        <strong>Too much!</strong> You've allocated ₹${Math.abs(difference).toFixed(2)} more than the expense amount.<br>
+                        <small class="text-muted">Total: ₹${expenseTotal.toFixed(2)} | Allocated: ₹${allocationTotal.toFixed(2)} | Excess: ₹${Math.abs(difference).toFixed(2)}</small>
+                    `);
+                }
+
+                $('#submitBtn').removeClass('btn-primary').addClass('btn-danger-split');
+                $('#allocationBreakdown').hide();
+
+            } else {
+                // No amounts set
+                $('#splitValidationSection').hide();
+                $('#submitBtn').removeClass('btn-danger-split').addClass('btn-primary');
+            }
+        }
+
+        // Function to show allocation breakdown
+        function showAllocationBreakdown(total) {
+            let breakdown = [];
+
+            $("input[name='allocation_amount[]']").each(function(index) {
+                const amount = parseFloat($(this).val()) || 0;
+                const costCenterInput = $(this).closest('.expense-item').find('input[name="allocation_cost_center[]"]');
+                const costCenter = costCenterInput.val() || `Allocation ${index + 1}`;
+
+                if (amount > 0) {
+                    const percentage = ((amount / total) * 100).toFixed(1);
+                    breakdown.push(`<span class="badge bg-primary me-1">${costCenter}: ${percentage}%</span>`);
+                }
+            });
+
+            if (breakdown.length > 0) {
+                $('#allocationBreakdown').html(`
+                    <div class="mt-2">
+                        <small class="text-muted d-block mb-1">Allocation Breakdown:</small>
+                        ${breakdown.join('')}
+                    </div>
+                `).show();
+            } else {
+                $('#allocationBreakdown').hide();
+            }
         }
 
         // Convert number to words
@@ -925,7 +2247,9 @@
                 result += " and " + convertLessThanThousand(decimalPart) + " paise";
             }
 
-            return result + " only";
+            // Capitalize the first letter and return
+            const finalResult = result + " only";
+            return finalResult.charAt(0).toUpperCase() + finalResult.slice(1);
 
             function convertLessThanThousand(num) {
                 if (num === 0) return "";
@@ -958,60 +2282,342 @@
             }
         }
 
-        // Submit button
-        $("#submitBtn").click(function() {
-            // Validate form
-            if (!validateForm()) {
-                return;
+        // Submit button - REMOVED: This was causing the modal to show for all invoice types
+        // The actual submit logic is handled in the second click handler below
+
+        // Helper functions for form validation
+        function clearValidationErrors() {
+            // Remove all validation error messages
+            $('.field-validation-error').remove();
+            // Remove error styling from all form controls
+            $('.form-control, .form-select').removeClass('is-invalid');
+        }
+
+        function clearFieldError(fieldId) {
+            const field = $(`#${fieldId}`);
+            if (field.length) {
+                // Remove error styling
+                field.removeClass('is-invalid');
+                // Remove error message
+                field.siblings('.field-validation-error').remove();
             }
+        }
 
-            // Show approval modal
-            const managerEmail = $("#employeeManager").val();
-            $("#managerEmail").val(managerEmail);
+        function addFieldError(fieldId, message) {
+            const field = $(`#${fieldId}`);
+            if (field.length) {
+                // Add error styling
+                field.addClass('is-invalid');
 
-            const approvalModal = new bootstrap.Modal(document.getElementById('approvalModal'));
-            approvalModal.show();
-        });
+                // Add error message below the field
+                const errorHtml = `
+                    <div class="field-validation-error invalid-feedback d-block">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        ${message}
+                    </div>
+                `;
 
-        // Validate form
+                // Remove any existing error message for this field
+                field.siblings('.field-validation-error').remove();
+                field.after(errorHtml);
+            }
+        }
+
+
+
+        // Enhanced form validation with detailed error feedback
         function validateForm() {
-            // Check if all required fields are filled
-            const form = document.getElementById("expenseForm");
-            if (!form.checkValidity()) {
-                // Trigger browser's native validation
-                form.reportValidity();
-                return false;
-            }
+            // Clear any previous validation messages
+            clearValidationErrors();
 
-            // Check if valid employee and cost center selections have been made
-            let isValid = true;
-            let errorMessage = "";
+            let validationErrors = [];
+            let firstErrorField = null;
 
-            if (!validEmployee) {
+            // 1. Validate Employee Information
+            if (!validEmployee || !$("#employeeName").val().trim()) {
+                validationErrors.push("Employee Name is required");
+                addFieldError("employeeName", "Please select a valid employee from the list");
                 $("#employeeNameHelp").text("Please select a valid employee from the list").addClass("text-danger").removeClass("text-success");
-                errorMessage += "Please select a valid employee from the dropdown list.\n";
-                isValid = false;
+                if (!firstErrorField) firstErrorField = $("#employeeName");
             }
 
-            if (!validCostCenter) {
+            if (!$("#employeeId").val()) {
+                validationErrors.push("Employee ID is required");
+                addFieldError("employeeIdDisplay", "Employee ID is required");
+                if (!firstErrorField) firstErrorField = $("#employeeName");
+            }
+
+            // 2. Validate Expense Details
+            if (!$("#invoiceType").val()) {
+                validationErrors.push("Invoice Type is required");
+                addFieldError("invoiceType", "Please select an invoice type");
+                if (!firstErrorField) firstErrorField = $("#invoiceType");
+            }
+
+            if (!validCostCenter || !$("#costCenterName").val().trim()) {
+                validationErrors.push("Cost Center is required");
+                addFieldError("costCenterName", "Please select a valid cost center from the list");
                 $("#costCenterHelp").text("Please select a valid cost center from the list").addClass("text-danger").removeClass("text-success");
-                errorMessage += "Please select a valid cost center from the dropdown list.\n";
-                isValid = false;
+                if (!firstErrorField) firstErrorField = $("#costCenterName");
             }
 
-            if (!isValid) {
-                // Show error message
-                Swal.fire({
-                    title: 'Validation Error',
-                    text: errorMessage.trim(),
-                    icon: 'error',
-                    confirmButtonText: 'OK'
+            if (!$("#citySelect").val()) {
+                validationErrors.push("City is required");
+                addFieldError("citySelect", "Please select a city");
+                if (!firstErrorField) firstErrorField = $("#citySelect");
+            }
+
+            if (!$("#paymentTo").val()) {
+                validationErrors.push("Payment To is required");
+                addFieldError("paymentTo", "Please select payment type");
+                if (!firstErrorField) firstErrorField = $("#paymentTo");
+            }
+
+            if (!$("#fromDate").val()) {
+                validationErrors.push("From Date is required");
+                addFieldError("fromDate", "Please select a from date");
+                if (!firstErrorField) firstErrorField = $("#fromDate");
+            }
+
+            if (!$("#toDate").val()) {
+                validationErrors.push("To Date is required");
+                addFieldError("toDate", "Please select a to date");
+                if (!firstErrorField) firstErrorField = $("#toDate");
+            }
+
+            // 3. Validate Expense Items and Allocations
+            let hasValidExpenseItems = false;
+            const invoiceType = $("#invoiceType").val();
+
+            $(".expense-item").each(function() {
+                const expenseId = $(this).attr("id").split("-")[1];
+                let itemValid = true;
+
+                // Check if this is an allocation item (has allocation fields)
+                const isAllocation = $(this).find('input[name="allocation_cost_center[]"]').length > 0;
+
+                if (isAllocation) {
+                    // Validate allocation fields
+                    const allocationNumber = expenseId - 1; // Allocations start from #1 (expense #2 becomes allocation #1)
+
+                    // Check allocation cost center (must be selected from database)
+                    const allocationCostCenter = $(`#allocationCostCenter-${expenseId}`).val();
+                    const allocationCostCenterId = $(`#allocationCostCenterId-${expenseId}`).val();
+
+                    if (!allocationCostCenter || allocationCostCenter.trim() === "") {
+                        validationErrors.push(`Allocation #${allocationNumber}: Cost Center is required`);
+                        addFieldError(`allocationCostCenter-${expenseId}`, "Please select a cost center");
+                        if (!firstErrorField) firstErrorField = $(`#allocationCostCenter-${expenseId}`);
+                        itemValid = false;
+                    } else if (!allocationCostCenterId || allocationCostCenterId.trim() === "") {
+                        validationErrors.push(`Allocation #${allocationNumber}: Cost Center must be selected from the list`);
+                        addFieldError(`allocationCostCenter-${expenseId}`, "Please select a valid cost center from the dropdown list");
+                        if (!firstErrorField) firstErrorField = $(`#allocationCostCenter-${expenseId}`);
+                        itemValid = false;
+                    }
+
+                    // Check allocation expense head
+                    const allocationExpenseHead = $(`#allocationExpenseHead-${expenseId}`).val();
+                    if (!allocationExpenseHead) {
+                        validationErrors.push(`Allocation #${allocationNumber}: Expense Head is required`);
+                        addFieldError(`allocationExpenseHead-${expenseId}`, "Please select an expense head");
+                        if (!firstErrorField) firstErrorField = $(`#allocationExpenseHead-${expenseId}`);
+                        itemValid = false;
+                    }
+
+                    // Check allocation amount
+                    const allocationAmount = $(`#allocationAmount-${expenseId}`).val();
+                    if (!allocationAmount || parseFloat(allocationAmount) <= 0) {
+                        validationErrors.push(`Allocation #${allocationNumber}: Amount is required and must be greater than 0`);
+                        addFieldError(`allocationAmount-${expenseId}`, "Amount is required and must be greater than 0");
+                        if (!firstErrorField) firstErrorField = $(`#allocationAmount-${expenseId}`);
+                        itemValid = false;
+                    }
+
+                    // Check allocation approver email (must exist in database)
+                    const allocationApprover = $(`#allocationApprover-${expenseId}`).val();
+                    if (!allocationApprover || allocationApprover.trim() === "") {
+                        validationErrors.push(`Allocation #${allocationNumber}: Approver Email is required`);
+                        addFieldError(`allocationApprover-${expenseId}`, "Please enter an approver email");
+                        if (!firstErrorField) firstErrorField = $(`#allocationApprover-${expenseId}`);
+                        itemValid = false;
+                    } else {
+                        // Validate email format first
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailRegex.test(allocationApprover)) {
+                            validationErrors.push(`Allocation #${allocationNumber}: Invalid email format`);
+                            addFieldError(`allocationApprover-${expenseId}`, "Please enter a valid email address");
+                            if (!firstErrorField) firstErrorField = $(`#allocationApprover-${expenseId}`);
+                            itemValid = false;
+                        } else {
+                            // Check if email exists in database (async validation)
+                            // We'll mark this for async validation
+                            const emailField = $(`#allocationApprover-${expenseId}`);
+                            if (!emailField.data('validated-email') || emailField.data('validated-email') !== allocationApprover) {
+                                validationErrors.push(`Allocation #${allocationNumber}: Email must be validated against database`);
+                                addFieldError(`allocationApprover-${expenseId}`, "Please select an email from the dropdown or verify this email exists");
+                                if (!firstErrorField) firstErrorField = $(`#allocationApprover-${expenseId}`);
+                                itemValid = false;
+                            }
+                        }
+                    }
+                } else {
+                    // Validate standard expense fields
+
+                    // Check invoice date
+                    const invoiceDate = $(`#invoiceDate-${expenseId}`).val();
+                    if (!invoiceDate) {
+                        validationErrors.push(`Expense #${expenseId}: Invoice Date is required`);
+                        addFieldError(`invoiceDate-${expenseId}`, "Invoice date is required");
+                        if (!firstErrorField) firstErrorField = $(`#invoiceDate-${expenseId}`);
+                        itemValid = false;
+                    }
+
+                    // Check expense head (only for standard invoices, not for split invoices)
+                    if (invoiceType !== 'split') {
+                        const expenseHead = $(`#expenseHead-${expenseId}`).val();
+                        if (!expenseHead) {
+                            validationErrors.push(`Expense #${expenseId}: Expense Head is required`);
+                            addFieldError(`expenseHead-${expenseId}`, "Please select an expense head");
+                            if (!firstErrorField) firstErrorField = $(`#expenseHead-${expenseId}`);
+                            itemValid = false;
+                        }
+                    }
+
+                    // Check amount
+                    const amount = $(`#amount-${expenseId}`).val();
+                    if (!amount || parseFloat(amount) <= 0) {
+                        validationErrors.push(`Expense #${expenseId}: Amount is required and must be greater than 0`);
+                        addFieldError(`amount-${expenseId}`, "Amount is required and must be greater than 0");
+                        if (!firstErrorField) firstErrorField = $(`#amount-${expenseId}`);
+                        itemValid = false;
+                    }
+
+                    // Check description
+                    const description = $(`#description-${expenseId}`).val();
+                    if (!description || description.trim() === "") {
+                        validationErrors.push(`Expense #${expenseId}: Description is required`);
+                        addFieldError(`description-${expenseId}`, "Description is required");
+                        if (!firstErrorField) firstErrorField = $(`#description-${expenseId}`);
+                        itemValid = false;
+                    }
+
+                    // Check receipt upload (only required if not a split from same invoice)
+                    const isSplitFromSameInvoice = $(`#splitInvoiceHidden-${expenseId}`).val() === "1";
+                    if (!isSplitFromSameInvoice) {
+                        const receipt = $(`#receipt-${expenseId}`)[0];
+                        if (!receipt || !receipt.files || receipt.files.length === 0) {
+                            validationErrors.push(`Expense #${expenseId}: Receipt is required`);
+                            addFieldError(`receipt-${expenseId}`, "Please upload a receipt");
+                            if (!firstErrorField) firstErrorField = $(`#receipt-${expenseId}`);
+                            itemValid = false;
+                        }
+                    }
+                }
+
+                if (itemValid) {
+                    hasValidExpenseItems = true;
+                }
+            });
+
+            // Additional validation for split invoices
+            if (invoiceType === 'split') {
+                // Check if we have at least one allocation
+                const allocationFields = $('input[name="allocation_cost_center[]"]');
+                if (allocationFields.length === 0) {
+                    validationErrors.push("Split invoices require at least one allocation");
+                }
+
+                // Check if allocation amounts match expense amounts
+                let expenseTotal = 0;
+                $("input[name='amount[]']").each(function() {
+                    expenseTotal += parseFloat($(this).val()) || 0;
                 });
+
+                let allocationTotal = 0;
+                $("input[name='allocation_amount[]']").each(function() {
+                    allocationTotal += parseFloat($(this).val()) || 0;
+                });
+
+                const difference = Math.abs(expenseTotal - allocationTotal);
+                if (difference > 0.01) {
+                    validationErrors.push(`Split allocation amounts (₹${allocationTotal.toFixed(2)}) must equal expense total (₹${expenseTotal.toFixed(2)})`);
+                }
+            }
+
+            if (!hasValidExpenseItems) {
+                validationErrors.push("At least one complete expense item is required");
+            }
+
+            // 4. Check acknowledgement
+            if (!$("#acknowledgementCheck").is(":checked")) {
+                validationErrors.push("Acknowledgement is required");
+                addFieldError("acknowledgementCheck", "Please acknowledge that you have verified the invoice");
+                if (!firstErrorField) firstErrorField = $("#acknowledgementCheck");
+            }
+
+            // 5. If there are errors, scroll to first error and focus
+            if (validationErrors.length > 0) {
+                if (firstErrorField) {
+                    // Scroll to first error and focus
+                    $('html, body').animate({
+                        scrollTop: firstErrorField.offset().top - 100
+                    }, 500);
+                    firstErrorField.focus();
+                }
                 return false;
             }
 
             return true;
         }
+
+        // Real-time validation clearing - add event listeners to clear errors when users interact with fields
+        function initializeValidationClearing() {
+            // Clear validation errors on input/change for all form fields
+            $(document).on('input change', '.form-control, .form-select', function() {
+                const fieldId = $(this).attr('id');
+                if (fieldId) {
+                    clearFieldError(fieldId);
+                }
+            });
+
+            // Clear validation errors when autocomplete selections are made
+            $(document).on('autocompleteselect', '.form-control', function() {
+                const fieldId = $(this).attr('id');
+                if (fieldId) {
+                    clearFieldError(fieldId);
+                }
+            });
+
+            // Clear validation errors for checkboxes
+            $(document).on('change', 'input[type="checkbox"]', function() {
+                const fieldId = $(this).attr('id');
+                if (fieldId) {
+                    clearFieldError(fieldId);
+                }
+            });
+
+            // Clear validation errors for file inputs
+            $(document).on('change', 'input[type="file"]', function() {
+                const fieldId = $(this).attr('id');
+                if (fieldId) {
+                    clearFieldError(fieldId);
+                }
+            });
+
+            // Clear validation errors for date inputs
+            $(document).on('change', 'input[type="date"]', function() {
+                const fieldId = $(this).attr('id');
+                if (fieldId) {
+                    clearFieldError(fieldId);
+                }
+            });
+        }
+
+        // Initialize validation clearing when document is ready
+        $(document).ready(function() {
+            initializeValidationClearing();
+        });
 
         // Approver type selection
         $("#approverType").change(function() {
@@ -1081,6 +2687,39 @@
 
             if (invoiceType === 'split') {
                 console.log('DEBUG: Processing split invoice - modal should NOT appear');
+
+                // First, validate split allocation amounts
+                let expenseTotal = 0;
+                $("input[name='amount[]']").each(function() {
+                    expenseTotal += parseFloat($(this).val()) || 0;
+                });
+
+                let allocationTotal = 0;
+                $("input[name='allocation_amount[]']").each(function() {
+                    allocationTotal += parseFloat($(this).val()) || 0;
+                });
+
+                const difference = Math.abs(expenseTotal - allocationTotal);
+                if (difference > 0.01) {
+                    Swal.fire({
+                        title: 'Split Amount Mismatch! 🚫',
+                        html: `
+                            <div class="text-start">
+                                <p><strong>Your allocations don't match the expense amount:</strong></p>
+                                <ul class="list-unstyled">
+                                    <li>💰 <strong>Expense Total:</strong> ₹${expenseTotal.toFixed(2)}</li>
+                                    <li>📊 <strong>Allocated Total:</strong> ₹${allocationTotal.toFixed(2)}</li>
+                                    <li>⚠️ <strong>Difference:</strong> ₹${difference.toFixed(2)}</li>
+                                </ul>
+                                <p class="text-muted">Please adjust your allocation amounts to match the expense total exactly.</p>
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonText: 'Fix Allocations',
+                        confirmButtonColor: '#dc3545'
+                    });
+                    return;
+                }
 
                 // For split invoices, validate that we have allocations
                 const allocationFields = $('input[name="allocation_cost_center[]"]');
@@ -1601,6 +3240,9 @@
                 // Update the expense items section for split invoice
                 updateExpenseItemsForSplitInvoice();
 
+                // Trigger split validation
+                updateSplitValidation();
+
                 // Update the add expense button text
                 $('#addExpenseBtn').html('<i class="fas fa-plus"></i> Add Allocation');
 
@@ -1623,6 +3265,9 @@
 
                 // Reset the add expense button text
                 $('#addExpenseBtn').html('<i class="fas fa-plus"></i> Add Expense');
+
+                // Trigger split validation (will hide it for standard invoices)
+                updateSplitValidation();
             }
 
             // Show cost center field for both types
@@ -1735,7 +3380,7 @@
                         <label for="invoiceDate-${expenseId}" class="form-label required-field">Invoice Date</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-                            <input type="date" class="form-control" id="invoiceDate-${expenseId}" name="invoice_date[]" required>
+                            <input type="date" class="form-control datepicker-only" id="invoiceDate-${expenseId}" name="invoice_date[]" required>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -1770,7 +3415,7 @@
                             <input type="file" class="form-control" id="receipt-${expenseId}" name="receipt[]" accept=".pdf,.jpg,.jpeg,.png" required>
                             <label class="input-group-text" for="receipt-${expenseId}"><i class="fas fa-upload"></i></label>
                         </div>
-                        <div class="form-text">Accepted formats: PDF, JPG, JPEG, PNG (Max size: 5MB)</div>
+                        <div class="form-text">Accepted formats: PDF, JPG, JPEG (Max size: 25MB)</div>
                     </div>
                 </div>
                 <div class="row mt-3 split-invoice-row" id="splitInvoiceRow-${expenseId}" style="display: none;">
@@ -1797,11 +3442,26 @@
                 minLength: 2,
                 select: function(event, ui) {
                     $(hiddenSelector).val(ui.item.id);
+                    $(inputSelector).removeClass('is-invalid').addClass('is-valid');
+
+                    // Clear any validation errors for this field
+                    const fieldId = $(inputSelector).attr('id');
+                    if (fieldId) {
+                        clearFieldError(fieldId);
+                    }
+
                     return true;
                 },
                 change: function(event, ui) {
                     if (!ui.item) {
                         $(hiddenSelector).val("");
+                        $(inputSelector).removeClass('is-valid is-invalid');
+                    }
+                },
+                response: function(event, ui) {
+                    // Show visual feedback if no cost centers found
+                    if (ui.content.length === 0) {
+                        $(inputSelector).addClass('is-invalid').removeClass('is-valid');
                     }
                 }
             });
@@ -1816,6 +3476,16 @@
                     // Fill in the email value
                     $(inputSelector).val(ui.item.email);
 
+                    // Mark this email as validated from database
+                    $(inputSelector).data('validated-email', ui.item.email);
+                    $(inputSelector).removeClass('is-invalid').addClass('is-valid');
+
+                    // Clear any validation errors for this field
+                    const fieldId = $(inputSelector).attr('id');
+                    if (fieldId) {
+                        clearFieldError(fieldId);
+                    }
+
                     // Update help text to show selection
                     const helpText = $(inputSelector).siblings('.form-text');
                     if (helpText.length) {
@@ -1828,18 +3498,21 @@
                     const helpText = $(inputSelector).siblings('.form-text');
                     if (helpText.length) {
                         if (ui.content.length === 0) {
-                            helpText.text("No matching employees found - you can enter email manually").removeClass('text-success').addClass('text-muted');
+                            helpText.text("No matching employees found - please select from available employees").removeClass('text-success').addClass('text-warning');
                         } else {
                             helpText.text("Please select an employee from the list").removeClass('text-muted').addClass('text-info');
                         }
                     }
                 },
                 change: function(event, ui) {
-                    // Reset help text when user types something not from the list
+                    // Reset validation when user types something not from the list
                     if (!ui.item) {
+                        $(inputSelector).removeData('validated-email');
+                        $(inputSelector).removeClass('is-valid is-invalid');
+
                         const helpText = $(inputSelector).siblings('.form-text');
                         if (helpText.length) {
-                            helpText.text("Start typing to see employee suggestions").removeClass('text-success text-info').addClass('text-muted');
+                            helpText.text("Start typing to see employee suggestions").removeClass('text-success text-info text-warning').addClass('text-muted');
                         }
                     }
                 },

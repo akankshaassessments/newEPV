@@ -56,15 +56,10 @@ const LoadingScreen = {
 
             // Set up default event listener for page load
             window.addEventListener('load', function() {
-                // If we were measuring, stop and record the time
-                if (LoadingScreen.isMeasuring) {
-                    LoadingScreen.stopMeasuring();
-                }
-
-                // Only hide automatically if we're on the login page and not measuring
-                if ((window.location.pathname === '/' || window.location.pathname === '/login') && !LoadingScreen.isMeasuring) {
+                // Always hide the loading screen when page is fully loaded
+                setTimeout(function() {
                     LoadingScreen.hide();
-                }
+                }, 500); // Small delay to ensure smooth transition
             });
 
             // Add event listener for login form submission
@@ -164,68 +159,24 @@ const LoadingScreen = {
             this.element = document.getElementById('loadingScreen');
         }
 
-        if (this.element) {
-            const elapsedTime = Date.now() - this.startTime;
-            const remainingTime = Math.max(0, this.minDisplayTime - elapsedTime);
+        if (this.element && this.element.style.display !== 'none') {
+            console.log('Hiding loading screen...');
 
-            // Function to actually hide the loading screen
-            const performHide = () => {
-                this.element.classList.add('fade-out');
+            // Add fade-out class for smooth transition
+            this.element.classList.add('fade-out');
 
-                // Remove from DOM after transition completes
-                setTimeout(() => {
-                    this.element.style.display = 'none';
-
-                    // Reset auth flow flags when hiding
-                    this.authInProgress = false;
-                    sessionStorage.removeItem('authFlowInProgress');
-                    console.log('Loading screen hidden, auth flow flags reset');
-                }, 300); // Match with CSS transition time (faster)
-            };
-
-            // Always hide the loading screen immediately when using back button
-            if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
-                console.log('Back button detected, hiding loading screen immediately');
+            // Hide the element after a short transition
+            setTimeout(() => {
                 this.element.style.display = 'none';
-                return;
-            }
+                this.element.classList.remove('fade-out');
 
-            // Check if we're in the auth flow and on the final page
-            const isAuthFlow = this.authInProgress || sessionStorage.getItem('authFlowInProgress') === 'true';
-            const isFinalPage = window.location.pathname === '/dashboard' ||
-                              window.location.pathname === '/epv-records';
+                // Reset flags
+                this.authInProgress = false;
+                this.isMeasuring = false;
+                sessionStorage.removeItem('authFlowInProgress');
 
-            // If we're in auth flow but not on the final page, don't hide yet
-            if (isAuthFlow && !isFinalPage) {
-                console.log('Auth flow in progress but not on final page, keeping loading screen visible');
-                return;
-            }
-
-            // Check if logo is loaded before hiding
-            if (this.logoLoaded) {
-                // Logo is already loaded, just wait for minimum display time
-                setTimeout(performHide, remainingTime);
-            } else {
-                // Wait for logo to load before hiding
-                const logoImg = this.element.querySelector('.loading-logo-color');
-                if (logoImg) {
-                    const checkLogoLoaded = () => {
-                        if (this.logoLoaded) {
-                            // Logo is now loaded, proceed with hiding
-                            setTimeout(performHide, remainingTime);
-                        } else {
-                            // Check again in 100ms
-                            setTimeout(checkLogoLoaded, 100);
-                        }
-                    };
-
-                    // Start checking if logo is loaded
-                    checkLogoLoaded();
-                } else {
-                    // No logo found, proceed with hiding
-                    setTimeout(performHide, remainingTime);
-                }
-            }
+                console.log('Loading screen hidden successfully');
+            }, 300);
         }
     }
 };
@@ -249,11 +200,13 @@ document.addEventListener('DOMContentLoaded', function() {
         img.src = logoImg.src;
     }
 
-    // Check if we're on the login page
-    if (window.location.pathname === '/' || window.location.pathname === '/login') {
-        // Don't automatically hide the loading screen on the login page
-        // It will be shown when the login button is clicked and hidden after redirect
-    }
+    // Failsafe: Always hide loading screen after 5 seconds maximum
+    setTimeout(function() {
+        if (LoadingScreen.element && LoadingScreen.element.style.display !== 'none') {
+            console.log('Failsafe: Force hiding loading screen after 5 seconds');
+            LoadingScreen.hide();
+        }
+    }, 5000);
 
     // Fix for back buttons - prevent loading screen from showing on simple navigation links
     document.addEventListener('click', function(e) {

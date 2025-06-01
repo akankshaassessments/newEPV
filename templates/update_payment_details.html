@@ -30,7 +30,7 @@
                                     </tr>
                                     <tr>
                                         <th>Total Amount</th>
-                                        <td>₹{{ epv.total_amount|float|round(2) }}</td>
+                                        <td>Rs. {{ epv.total_amount|float|round(2) }}</td>
                                     </tr>
                                 </table>
                             </div>
@@ -260,7 +260,7 @@
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label for="payment_date_1" class="form-label">Date of Payment 1</label>
-                                            <input type="date" class="form-control" id="payment_date_1" name="payment_date_1" value="{{ entry.payment_date_1.strftime('%Y-%m-%d') if entry.payment_date_1 else '' }}" required>
+                                            <input type="date" class="form-control datepicker-only" id="payment_date_1" name="payment_date_1" value="{{ entry.payment_date_1.strftime('%Y-%m-%d') if entry.payment_date_1 else '' }}" required>
                                         </div>
                                     </div>
                                 </div>

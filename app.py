@@ -1699,8 +1699,8 @@ def api_reports_overview():
     # Format the response
     response = {
         'total_expenses': f"{total_expenses:,}",
-        'total_amount': f"₹{total_amount:,.2f}",
-        'avg_amount': f"₹{avg_amount:,.2f}",
+        'total_amount': f"Rs. {total_amount:,.2f}",
+        'avg_amount': f"Rs. {avg_amount:,.2f}",
         'avg_processing_time': f"{avg_processing_time:.1f} days",
         'monthly_trend': monthly_trend,
         'category_distribution': {
@@ -3471,7 +3471,7 @@ def approve_split_allocation(token):
                               result="approved",
                               epv=epv,
                               allocation=allocation,
-                              message=f"Allocation for {allocation.cost_center_name} (₹{allocation.allocated_amount:,.2f}) has been approved successfully.")
+                              message=f"Allocation for {allocation.cost_center_name} (Rs. {allocation.allocated_amount:,.2f}) has been approved successfully.")
 
     except Exception as e:
         db.session.rollback()

@@ -282,7 +282,7 @@ def generate_expense_document(expense_data):
             elements.append(Spacer(1, 0.25*inch))
 
             # Add expenses table with improved styling
-            expense_data = [['#', 'Date', 'Expense Head', 'Description', 'Amount (₹)']]
+            expense_data = [['#', 'Date', 'Expense Head', 'Description', 'Amount (Rs.)']]
 
             for i, expense in enumerate(data.get('expenses', [])):
                 # Format the invoice date to dd-mm-yyyy if it's in yyyy-mm-dd format
@@ -352,7 +352,7 @@ def generate_expense_document(expense_data):
                 elements.append(Spacer(1, 0.15*inch))
 
                 # Create allocation table
-                allocation_data = [['#', 'Cost Center', 'Amount (₹)', 'Expense Head', 'Approver']]
+                allocation_data = [['#', 'Cost Center', 'Amount (Rs.)', 'Expense Head', 'Approver']]
 
                 for i, allocation in enumerate(data.get('split_allocations', [])):
                     allocation_data.append([

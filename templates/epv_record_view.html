@@ -255,7 +255,7 @@
                             <div class="card text-center">
                                 <div class="card-body">
                                     <h5 class="card-title text-primary">Total Amount</h5>
-                                    <h4 class="text-primary">₹{{ "{:,.2f}".format(epv.total_amount) }}</h4>
+                                    <h4 class="text-primary">Rs. {{ "{:,.2f}".format(epv.total_amount) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -263,7 +263,7 @@
                             <div class="card text-center">
                                 <div class="card-body">
                                     <h5 class="card-title text-success">Approved</h5>
-                                    <h4 class="text-success">₹{{ "{:,.2f}".format(epv.approved_amount or 0) }}</h4>
+                                    <h4 class="text-success">Rs. {{ "{:,.2f}".format(epv.approved_amount or 0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -271,7 +271,7 @@
                             <div class="card text-center">
                                 <div class="card-body">
                                     <h5 class="card-title text-danger">Rejected</h5>
-                                    <h4 class="text-danger">₹{{ "{:,.2f}".format(epv.rejected_amount or 0) }}</h4>
+                                    <h4 class="text-danger">Rs. {{ "{:,.2f}".format(epv.rejected_amount or 0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -377,7 +377,7 @@
                         <dd class="col-sm-9">{{ epv.payment_to }}</dd>
 
                         <dt class="col-sm-3">Total Amount:</dt>
-                        <dd class="col-sm-9">₹{{ epv.total_amount|float|round(2) }}</dd>
+                        <dd class="col-sm-9">Rs. {{ epv.total_amount|float|round(2) }}</dd>
 
                         <dt class="col-sm-3">Amount in Words:</dt>
                         <dd class="col-sm-9">{{ epv.amount_in_words }}</dd>

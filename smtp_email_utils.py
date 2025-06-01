@@ -152,7 +152,7 @@ def create_approval_email(epv_record, sender_email, base_url, token=None):
     """Create an HTML email for expense approval."""
     # Format expense details
     expense_date_range = f"{epv_record.from_date.strftime('%d-%m-%Y') if hasattr(epv_record.from_date, 'strftime') else epv_record.from_date} to {epv_record.to_date.strftime('%d-%m-%Y') if hasattr(epv_record.to_date, 'strftime') else epv_record.to_date}" if epv_record.from_date and epv_record.to_date else "N/A"
-    total_amount = f"₹{epv_record.total_amount:.2f}" if epv_record.total_amount else "N/A"
+    total_amount = f"Rs. {epv_record.total_amount:.2f}" if epv_record.total_amount else "N/A"
 
     # Get expense items
     expense_items = epv_record.items
@@ -213,7 +213,7 @@ def create_approval_email(epv_record, sender_email, base_url, token=None):
                         <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{item.expense_invoice_date.strftime('%d-%m-%Y') if hasattr(item.expense_invoice_date, 'strftime') else item.expense_invoice_date}</td>
                         <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{item.description}</td>
                         <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{item.expense_head}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">₹{item.amount:.2f}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Rs. {item.amount:.2f}</td>
                     </tr>""" for item in expense_items])}
                 </table>
             </div>
@@ -438,7 +438,7 @@ def send_split_allocation_approval_email(epv_record, allocation, base_url):
                             </tr>
                             <tr>
                                 <th>Total Invoice Amount</th>
-                                <td>₹{epv_record.total_amount:,.2f}</td>
+                                <td>Rs. {epv_record.total_amount:,.2f}</td>
                             </tr>
                             <tr>
                                 <th>Date Range</th>
@@ -460,7 +460,7 @@ def send_split_allocation_approval_email(epv_record, allocation, base_url):
                             </tr>
                             <tr>
                                 <th>Allocated Amount</th>
-                                <td>₹{allocation.allocated_amount:,.2f}</td>
+                                <td>Rs. {allocation.allocated_amount:,.2f}</td>
                             </tr>
                             <tr>
                                 <th>Description</th>
@@ -469,7 +469,7 @@ def send_split_allocation_approval_email(epv_record, allocation, base_url):
                         </table>
                     </div>
 
-                    <p><strong>Important:</strong> This is a split invoice where the total amount is allocated across multiple cost centers. You are only approving the allocation for your cost center ({allocation.cost_center_name}) for ₹{allocation.allocated_amount:,.2f}.</p>
+                    <p><strong>Important:</strong> This is a split invoice where the total amount is allocated across multiple cost centers. You are only approving the allocation for your cost center ({allocation.cost_center_name}) for Rs. {allocation.allocated_amount:,.2f}.</p>
 
                     <p>To view the complete expense details, attached receipts, and approve or reject this allocation, please click the button below:</p>
 
@@ -566,7 +566,7 @@ def send_split_allocation_rejection_notification(epv_record, allocation, rejecti
                             </tr>
                             <tr>
                                 <th>Total Invoice Amount</th>
-                                <td>₹{epv_record.total_amount:,.2f}</td>
+                                <td>Rs. {epv_record.total_amount:,.2f}</td>
                             </tr>
                             <tr>
                                 <th>Date Range</th>
@@ -588,7 +588,7 @@ def send_split_allocation_rejection_notification(epv_record, allocation, rejecti
                             </tr>
                             <tr>
                                 <th>Allocated Amount</th>
-                                <td>₹{allocation.allocated_amount:,.2f}</td>
+                                <td>Rs. {allocation.allocated_amount:,.2f}</td>
                             </tr>
                             <tr>
                                 <th>Rejected By</th>
@@ -608,7 +608,7 @@ def send_split_allocation_rejection_notification(epv_record, allocation, rejecti
 
                     <p><strong>Important:</strong> This rejection only affects the allocation for {allocation.cost_center_name}. Other allocations in your split invoice may still be processed if they are approved by their respective approvers.</p>
 
-                    <p>The rejected amount (₹{allocation.allocated_amount:,.2f}) will be subtracted from the total amount sent to finance for processing.</p>
+                    <p>The rejected amount (Rs. {allocation.allocated_amount:,.2f}) will be subtracted from the total amount sent to finance for processing.</p>
 
                     <p>If you have any questions about this rejection, please contact the finance team or the approver directly.</p>
 
@@ -659,7 +659,7 @@ def send_split_invoice_approval_email(approver_email, employee_name, epv_id, tot
             allocations_html += f"""
                 <tr>
                     <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{allocation['cost_center']}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">₹{float(allocation['amount']):,.2f}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Rs. {float(allocation['amount']):,.2f}</td>
                     <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{allocation['description']}</td>
                 </tr>
             """
@@ -694,7 +694,7 @@ def send_split_invoice_approval_email(approver_email, employee_name, epv_id, tot
                             </tr>
                             <tr>
                                 <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2;">Total Invoice Amount</th>
-                                <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">₹{total_amount:,.2f}</td>
+                                <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Rs. {total_amount:,.2f}</td>
                             </tr>
                         </table>
                     </div>
@@ -871,7 +871,7 @@ def send_finance_entry_rejection_notification(entry, rejected_by, rejection_reas
                             </tr>
                             <tr>
                                 <th>Amount</th>
-                                <td>₹{entry.amount:,.2f}</td>
+                                <td>Rs. {entry.amount:,.2f}</td>
                             </tr>
                             <tr>
                                 <th>Vendor Name</th>
@@ -1060,7 +1060,7 @@ def send_finance_entry_rejection_notification(entry, rejected_by, rejection_reas
                             </tr>
                             <tr>
                                 <th>Amount</th>
-                                <td>₹{entry.amount:,.2f}</td>
+                                <td>Rs. {entry.amount:,.2f}</td>
                             </tr>
                             <tr>
                                 <th>Vendor Name</th>
