@@ -9,11 +9,11 @@ from datetime import datetime, timedelta
 from flask import Flask, redirect, url_for, render_template, session, jsonify, request, send_file, flash, abort, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_dance.contrib.google import make_google_blueprint, google
-from flask_dance.consumer.storage import MemoryStorage
+from flask_dance.consumer.storage.session import SessionStorage
 from flask_dance.consumer import oauth_authorized, oauth_error
 from dotenv import load_dotenv
 from sqlalchemy import func
-from models import db, CostCenter, EmployeeDetails, SettingsFinance, ExpenseHead, EPV, EPVItem, EPVApproval, EPVAllocation, User, OAuth, init_db, CityAssignment, FinanceEntry, SupplementaryDocument
+from models import db, CostCenter, EmployeeDetails, SettingsFinance, ExpenseHead, EPV, EPVItem, EPVApproval, EPVAllocation, init_db, CityAssignment, FinanceEntry, SupplementaryDocument
 from pdf_converter import process_files
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -439,9 +439,17 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return EmployeeDetails.query.get(int(user_id))
 
 # Configure Flask-Dance with Google OAuth
+# Dynamic OAuth redirect URI based on environment
+if os.environ.get('FLASK_ENV') == 'development':
+    oauth_redirect_uri = 'https://127.0.0.1:5000/login/google/authorized'
+else:
+    oauth_redirect_uri = 'https://webapporbit.com/login/google/authorized'
+
+print(f"DEBUG: OAuth redirect URI: {oauth_redirect_uri}")
+
 blueprint = make_google_blueprint(
     client_id=os.environ.get('GOOGLE_CLIENT_ID'),
     client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
@@ -453,9 +461,9 @@ blueprint = make_google_blueprint(
         # Removed Gmail scope since we're now using SMTP
         # 'https://www.googleapis.com/auth/gmail.send'
     ],
-    storage=MemoryStorage(),
+    storage=SessionStorage(),
     redirect_to='after_login',
-    authorized_url='/google/authorized',
+    redirect_url=oauth_redirect_uri,  # Use dynamic redirect URI
     # Request refresh token
     reprompt_consent=True,
     # Include offline access
@@ -531,47 +539,54 @@ def get_google_credentials(scopes=None):
 # Set up OAuth token event handlers
 @oauth_authorized.connect_via(blueprint)
 def google_logged_in(blueprint, token):
+    print("=" * 80)
+    print("🚨 OAUTH SIGNAL HANDLER CALLED!!!")
+    print("=" * 80)
+    print(f"🔍 DEBUG: Token received: {bool(token)}")
+    print(f"🔍 DEBUG: Blueprint name: {blueprint.name}")
+    print("=" * 80)
+
     if not token:
+        print("❌ DEBUG: No token received")
         flash("Failed to log in with Google.", category="error")
         return False
 
     # Get user info from Google
+    print("🔍 DEBUG: Getting user info from Google")
     resp = blueprint.session.get("/oauth2/v2/userinfo")
     if not resp.ok:
+        print(f"❌ DEBUG: Failed to get user info. Status: {resp.status_code}")
         flash("Failed to fetch user info from Google.", category="error")
         return False
 
     user_info = resp.json()
     email = user_info["email"]
+    print(f"🔍 DEBUG: User email: {email}")
 
     # Find or create the user
     try:
-        # Try to find the user first
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            # Check if user exists in EmployeeDetails
-            employee = EmployeeDetails.query.filter_by(email=email).first()
-            if employee:
-                # Create user from employee details
-                user = User(
-                    email=email,
-                    name=employee.name,
-                    role=employee.role,
-                    employee_id=employee.employee_id
-                )
-            else:
-                # Create basic user
-                user = User(
-                    email=email,
-                    name=user_info.get('name', ''),
-                    role='user'
-                )
-
-            db.session.add(user)
+        # Find employee in EmployeeDetails
+        print(f"🔍 DEBUG: Looking for employee with email: {email}")
+        employee = EmployeeDetails.query.filter_by(email=email).first()
+        if not employee:
+            print("🔍 DEBUG: Employee not found, creating new record")
+            # Create basic employee record for new users
+            employee = EmployeeDetails(
+                email=email,
+                name=user_info.get('name', ''),
+                role='user',  # Default role for new users
+                is_active=True
+            )
+            db.session.add(employee)
             db.session.commit()
+            print(f"🔍 DEBUG: Created new employee with ID: {employee.id}")
+        else:
+            print(f"🔍 DEBUG: Found existing employee with ID: {employee.id}")
 
-        # Log in the user
-        login_user(user)
+        # Log in the employee (EmployeeDetails now implements UserMixin)
+        print("🔍 DEBUG: Calling login_user()")
+        login_user(employee)
+        print(f"🔍 DEBUG: login_user() completed. current_user.is_authenticated: {current_user.is_authenticated}")
 
         # Store user info and token in session for backward compatibility
         session['user_info'] = user_info
@@ -602,14 +617,26 @@ def google_logged_in(blueprint, token):
         if cost_center_approver:
             print(f"DEBUG: User is approver for cost center: {cost_center_approver.costcenter}")
 
-        print(f"DEBUG: Successfully logged in user: {email}")
+        print(f"🔍 DEBUG: Successfully logged in user: {email}")
+
+        # Get the next URL and redirect immediately
+        next_url = session.get('next_url', '/dashboard')
+        session.pop('next_url', None)  # Clear the next_url
+        print(f"🔍 DEBUG: OAuth callback redirecting to: {next_url}")
+        print(f"🔍 DEBUG: About to return redirect({next_url})")
+
+        # Return redirect to override Flask-Dance default behavior
+        redirect_response = redirect(next_url)
+        print(f"🔍 DEBUG: Created redirect response: {redirect_response}")
+        print(f"🔍 DEBUG: Redirect response location: {redirect_response.location}")
+        return redirect_response
 
     except Exception as e:
         print(f"ERROR: {str(e)}")
         flash("An error occurred during login.", category="error")
         return False
 
-    # Don't save the token again, Flask-Dance will do it for us
+    # This should not be reached due to redirect above
     return False
 
 @oauth_error.connect_via(blueprint)
@@ -624,10 +651,16 @@ def google_error(blueprint, error, error_description=None, error_uri=None):
 # Routes
 @app.route('/')
 def index():
-    # Check if user is logged in
-    user_info = session.get('user_info')
-    if user_info:
+    print("🔍 DEBUG: Index route called")
+    print(f"🔍 DEBUG: current_user.is_authenticated: {current_user.is_authenticated}")
+    print(f"🔍 DEBUG: current_user: {current_user}")
+
+    # Check if user is logged in using Flask-Login
+    if current_user.is_authenticated:
+        print("🔍 DEBUG: User is authenticated, redirecting to dashboard")
         return redirect(url_for('dashboard'))
+
+    print("🔍 DEBUG: User not authenticated, showing login page")
     return render_template('login.html')
 
 @app.route('/login')
@@ -636,6 +669,7 @@ def login():
     next_url = request.args.get('next') or request.referrer or '/dashboard'
     session['next_url'] = next_url
     print(f"DEBUG: Storing next_url in session: {next_url}")
+    
 
     # Redirect to Google OAuth login
     return redirect(url_for('google.login'))
@@ -762,50 +796,61 @@ def logout_user_route():
 
 @app.route('/after-login')
 def after_login():
+    print("=" * 50)
+    print("🔍 DEBUG: AFTER-LOGIN ROUTE CALLED!!!")
+    print("=" * 50)
+
     # Check if user is authenticated with Google
     if not google.authorized:
+        print("❌ DEBUG: Not authorized with Google")
         flash("Authentication failed.")
         return redirect(url_for('index'))
+
+    print("🔍 DEBUG: Google OAuth authorized, getting user info")
 
     # Get user info from Google
     resp = google.get('/oauth2/v2/userinfo')
     if not resp.ok:
+        print(f"❌ DEBUG: Failed to get user info. Status: {resp.status_code}")
         flash("Failed to get user info from Google.")
         return redirect(url_for('index'))
 
     user_info = resp.json()
     email = user_info['email']
+    print(f"🔍 DEBUG: User email: {email}")
 
-    # Find or create user
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        # Check if user exists in EmployeeDetails
-        employee = EmployeeDetails.query.filter_by(email=email).first()
-        if employee:
-            # Create user from employee details
-            user = User(
-                email=email,
-                name=employee.name,
-                role=employee.role,
-                employee_id=employee.employee_id
-            )
-        else:
-            # Create basic user
-            user = User(
-                email=email,
-                name=user_info.get('name', ''),
-                role='user'
-            )
-
-        db.session.add(user)
+    # Find employee in EmployeeDetails
+    print(f"🔍 DEBUG: Looking for employee with email: {email}")
+    employee = EmployeeDetails.query.filter_by(email=email).first()
+    if not employee:
+        print("🔍 DEBUG: Employee not found, creating new record")
+        # Create basic employee record for new users
+        employee = EmployeeDetails(
+            email=email,
+            name=user_info.get('name', ''),
+            role='user',  # Default role for new users
+            is_active=True
+        )
+        db.session.add(employee)
         db.session.commit()
+        print(f"🔍 DEBUG: Created new employee with ID: {employee.id}")
+    else:
+        print(f"🔍 DEBUG: Found existing employee with ID: {employee.id}")
 
-    # Log in the user with Flask-Login
-    login_user(user)
+    # Log in the employee with Flask-Login
+    print("🔍 DEBUG: Calling login_user()")
+    login_user(employee)
+    print(f"🔍 DEBUG: login_user() completed. current_user.is_authenticated: {current_user.is_authenticated}")
 
     # Store user info in session for backward compatibility
     session['user_info'] = user_info
     session['email'] = email
+    session['employee_id'] = employee.employee_id or ''
+    session['employee_role'] = employee.role or 'user'
+    session['employee_manager'] = employee.manager or ''
+
+    # Store Google token for API access
+    session['google_token'] = google.token
 
     # Check if user is a cost center approver
     cost_center_approver = CostCenter.query.filter_by(approver_email=email, is_active=True).first()
@@ -814,8 +859,12 @@ def after_login():
     if cost_center_approver:
         print(f"DEBUG: User is approver for cost center: {cost_center_approver.costcenter}")
 
+    print(f"🔍 DEBUG: Successfully logged in user: {email}")
+
     # Get the next URL from session
     next_url = session.get('next_url', '/dashboard')
+    session.pop('next_url', None)  # Clear the next_url
+    print(f"🔍 DEBUG: after-login redirecting to: {next_url}")
 
     # Redirect to the next URL
     return redirect(next_url)
@@ -4095,25 +4144,11 @@ def download_file(epv_id):
     # Try to get the file path
     file_path = None
 
-    # First, try to find the file in the local file system
-    pdf_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pdf_uploads')
+    # Skip local file system check since we don't store files locally anymore
+    print(f"Skipping local file check - files are stored only in Google Drive")
 
-    # Check if there's a file with the EPV ID in its name
-    for filename in os.listdir(pdf_dir):
-        if epv_id.lower() in filename.lower():
-            file_path = os.path.join(pdf_dir, filename)
-            print(f"Found file in pdf_uploads directory with EPV ID in name: {file_path}")
-            break
-
-    # If no file with EPV ID in name, check if there's a merged PDF file
-    if not file_path:
-        # Get the most recent merged PDF file
-        merged_files = [f for f in os.listdir(pdf_dir) if f.startswith('merged_')]
-        if merged_files:
-            # Sort by modification time (most recent first)
-            merged_files.sort(key=lambda x: os.path.getmtime(os.path.join(pdf_dir, x)), reverse=True)
-            file_path = os.path.join(pdf_dir, merged_files[0])
-            print(f"Using most recent merged PDF file: {file_path}")
+    # Skip local merged file check since we don't store files locally anymore
+    print(f"Skipping local merged file check - files are stored only in Google Drive")
 
     # If we couldn't find the file locally and the EPV has a drive_file_id, try to download from Google Drive
     if (not file_path or not os.path.exists(file_path)) and epv.drive_file_id and epv.drive_file_id != f"demo_file_id_{epv_id}":

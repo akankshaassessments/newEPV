@@ -2,24 +2,23 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect
 from datetime import datetime
 from flask_login import UserMixin
-from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
-from sqlalchemy.orm import relationship
+# Removed OAuth imports since we're not using OAuth storage anymore
 
 db = SQLAlchemy()
 
 class CostCenter(db.Model):
     __tablename__ = 'costcenter'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    costcenter = db.Column(db.String(100), nullable=False)
-    approver_email = db.Column(db.String(100), nullable=True)  # Email of the cost center approver/administrator
-    city = db.Column(db.String(50), nullable=True)
+    costcenter = db.Column(db.String(100), nullable=False, index=True)
+    approver_email = db.Column(db.String(100), nullable=True, index=True)  # Email of the cost center approver/administrator
+    city = db.Column(db.String(50), nullable=True, index=True)
     drive_id = db.Column(db.String(100), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True, index=True)
 
     def __repr__(self):
         return f'<CostCenter {self.costcenter}>'
 
-class EmployeeDetails(db.Model):
+class EmployeeDetails(UserMixin, db.Model):
     __tablename__ = 'employee_details'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     email = db.Column(db.String(100), nullable=False, unique=True)
@@ -32,6 +31,23 @@ class EmployeeDetails(db.Model):
 
     # Relationship with assigned cities (for Finance personnel)
     city_assignments = db.relationship('CityAssignment', foreign_keys='CityAssignment.employee_id', backref='employee', lazy=True)
+
+    # Flask-Login required methods
+    def get_id(self):
+        """Return the user ID as a string"""
+        return str(self.id)
+
+    def is_authenticated(self):
+        """Return True if the user is authenticated"""
+        return True
+
+    def is_anonymous(self):
+        """Return True if the user is anonymous"""
+        return False
+
+    def is_active_user(self):
+        """Return True if the user account is active"""
+        return self.is_active
 
     def __repr__(self):
         return f'<EmployeeDetails {self.name} ({self.email})>'
@@ -80,18 +96,22 @@ class EPV(db.Model):
     Model to store all expense voucher data
     """
     __tablename__ = 'epv'
+    __table_args__ = (
+        db.CheckConstraint('from_date <= to_date', name='check_date_range'),
+        db.CheckConstraint('total_amount >= 0', name='check_positive_amount'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     epv_id = db.Column(db.String(30), unique=True, nullable=False)  # EPV-YYYYMMDD-XXXXXXXXXX format
 
     # Employee details
-    email_id = db.Column(db.String(100), nullable=False)
+    email_id = db.Column(db.String(100), nullable=False, index=True)
     employee_name = db.Column(db.String(100), nullable=False)
-    employee_id = db.Column(db.String(50), nullable=False)
+    employee_id = db.Column(db.String(50), nullable=False, index=True)
 
     # Date range
-    from_date = db.Column(db.Date, nullable=False)
-    to_date = db.Column(db.Date, nullable=False)
+    from_date = db.Column(db.Date, nullable=False, index=True)
+    to_date = db.Column(db.Date, nullable=False, index=True)
 
     # Payment and acknowledgement
     payment_to = db.Column(db.String(100), nullable=False)  # Previously expense_type
@@ -131,7 +151,7 @@ class EPV(db.Model):
     pending_amount = db.Column(db.Float, default=0.0)   # Total amount still pending approval
 
     # Approval workflow
-    status = db.Column(db.String(20), default='submitted')  # submitted, pending_approval, approved, rejected, partially_approved, finance_pending, finance_processed, finance_approved, finance_rejected
+    status = db.Column(db.String(20), default='submitted', index=True)  # submitted, pending_approval, approved, rejected, partially_approved, finance_pending, finance_processed, finance_approved, finance_rejected
     # The overall status is determined by the individual approver statuses in EPVApproval
     # If all approvers approve, status = 'approved'
     # If any approver rejects, status = 'rejected'
@@ -224,11 +244,11 @@ class EPVApproval(db.Model):
     allocation = db.relationship('EPVAllocation', backref=db.backref('approval', uselist=False))
 
     # Approver details
-    approver_email = db.Column(db.String(100), nullable=False)
+    approver_email = db.Column(db.String(100), nullable=False, index=True)
     approver_name = db.Column(db.String(100))
 
     # Approval status
-    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    status = db.Column(db.String(20), default='pending', index=True)  # pending, approved, rejected
     action_date = db.Column(db.DateTime)  # When the approver took action
     comments = db.Column(db.Text)  # Any comments from the approver
 
@@ -276,7 +296,7 @@ class EPVAllocation(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __repr__(self):
-        return f"<EPVAllocation {self.id} for EPV {self.epv_id} - {self.cost_center_name} - ₹{self.allocated_amount}>"
+        return f"<EPVAllocation {self.id} for EPV {self.epv_id} - {self.cost_center_name} - Rs. {self.allocated_amount}>"
 
 class EPVItem(db.Model):
     """
@@ -336,51 +356,9 @@ class SupplementaryDocument(db.Model):
     def __repr__(self):
         return f"<SupplementaryDocument {self.id} for EPV {self.epv_id}>"
 
-class User(UserMixin, db.Model):
-    """User model for Flask-Login"""
-    __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), unique=True)
-    name = db.Column(db.String(100))
-    role = db.Column(db.String(50))
-    employee_id = db.Column(db.String(50))
+# User and OAuth models removed - using EmployeeDetails for Flask-Login instead
 
-    def __repr__(self):
-        return f'<User {self.email}>'
-
-class OAuth(OAuthConsumerMixin, db.Model):
-    """OAuth token storage model"""
-    __tablename__ = 'oauth'
-    user_id = db.Column(db.Integer, db.ForeignKey(User.id))
-    user = db.relationship(User)
-
-def sync_users_from_employee_details():
-    """Sync users from EmployeeDetails to User model"""
-    # Get all employee details
-    employees = EmployeeDetails.query.all()
-
-    # For each employee, create or update a user
-    for employee in employees:
-        # Check if user already exists
-        user = User.query.filter_by(email=employee.email).first()
-        if not user:
-            # Create new user
-            user = User(
-                email=employee.email,
-                name=employee.name,
-                role=employee.role,
-                employee_id=employee.employee_id
-            )
-            db.session.add(user)
-        else:
-            # Update existing user
-            user.name = employee.name
-            user.role = employee.role
-            user.employee_id = employee.employee_id
-
-    # Commit changes
-    db.session.commit()
-    print("Users synced from EmployeeDetails.")
+# Sync function removed - no longer needed since we use EmployeeDetails directly for authentication
 
 def init_db(app):
     with app.app_context():
@@ -530,9 +508,7 @@ def init_db(app):
             db.session.commit()
             print("Database initialized with employee details.")
 
-        # Sync users from employee details
-        if inspector.has_table('employee_details') and EmployeeDetails.query.count() > 0:
-            sync_users_from_employee_details()
+        # User sync no longer needed - using EmployeeDetails directly for authentication
 
         # Initialize finance settings if the table is empty
         print("DEBUG: Checking settings_finance table...")
@@ -665,7 +641,7 @@ def init_db(app):
                 ('payment_date_2', 'DATETIME', 'Payment Date 2')
             ]
 
-            for field_name, field_type, field_desc in additional_fields:
+            for field_name, field_type, _ in additional_fields:
                 if field_name not in columns:
                     print(f"Adding {field_name} column to finance_entry table")
                     with db.engine.connect() as conn:

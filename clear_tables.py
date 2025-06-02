@@ -9,7 +9,7 @@ from app import app, db
 from models import (
     EPV, EPVItem, EPVApproval, EPVAllocation, FinanceEntry,
     SupplementaryDocument, CityAssignment, SettingsFinance,
-    CostCenter, User, EmployeeDetails, ExpenseHead
+    CostCenter, EmployeeDetails, ExpenseHead
 )
 
 def clear_tables():
@@ -34,7 +34,6 @@ def clear_tables():
             # Tables to keep (will NOT be cleared)
             tables_to_keep = [
                 'CostCenter',
-                'User',
                 'EmployeeDetails',
                 'ExpenseHead',
                 'CityAssignment',
@@ -101,7 +100,6 @@ def clear_tables():
             # Verify the tables we wanted to keep still have data
             print("\nRemaining data in preserved tables:")
             print(f"  CostCenter: {CostCenter.query.count()} records")
-            print(f"  User: {User.query.count()} records")
             print(f"  EmployeeDetails: {EmployeeDetails.query.count()} records")
             print(f"  ExpenseHead: {ExpenseHead.query.count()} records")
             print(f"  CityAssignment: {CityAssignment.query.count()} records")
@@ -120,7 +118,6 @@ def clear_tables():
             print("✓ Table cleanup completed successfully!")
             print("\nThe following reference data has been preserved:")
             print("  - Cost Centers")
-            print("  - Users")
             print("  - Employee Details")
             print("  - Expense Heads")
             print("  - City Assignments")

@@ -209,12 +209,7 @@ def create_approval_email(epv_record, sender_email, base_url, token=None):
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2;">Category</th>
                         <th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2;">Amount</th>
                     </tr>
-                    {''.join([f"""<tr>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{item.expense_invoice_date.strftime('%d-%m-%Y') if hasattr(item.expense_invoice_date, 'strftime') else item.expense_invoice_date}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{item.description}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">{item.expense_head}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: left;">Rs. {item.amount:.2f}</td>
-                    </tr>""" for item in expense_items])}
+                    {''.join([f"<tr><td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>{item.expense_invoice_date.strftime('%d-%m-%Y') if hasattr(item.expense_invoice_date, 'strftime') else item.expense_invoice_date}</td><td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>{item.description}</td><td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>{item.expense_head}</td><td style='border: 1px solid #ddd; padding: 8px; text-align: left;'>Rs. {item.amount:.2f}</td></tr>" for item in expense_items])}
                 </table>
             </div>
 

@@ -76,13 +76,14 @@ except ImportError as e:
     print(f"WARNING: PIL import error: {str(e)}. Image conversion will be disabled.")
     PIL_AVAILABLE = False
 
-# Create directories for uploads, templates, and static files
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pdf_uploads')
+# Use temporary directory instead of permanent pdf_uploads
+import tempfile
+UPLOAD_DIR = tempfile.gettempdir()  # Use system temp directory
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
-# Create directories if they don't exist
-for directory in [UPLOAD_DIR, STATIC_DIR]:
+# Create directories if they don't exist (only for templates and static)
+for directory in [STATIC_DIR]:
     if not os.path.exists(directory):
         os.makedirs(directory, mode=0o777)  # Full permissions to ensure writability
 
@@ -676,14 +677,18 @@ def process_files(files, drive_folder_id=None, employee_name=None, cost_center_n
                 }
 
                 try:
-                    # Create a unique filename
+                    # Create a unique temporary filename
                     original_filename = secure_filename(file.filename)
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                     unique_id = uuid.uuid4().hex[:8]
                     unique_filename = f"{timestamp}_{unique_id}_{original_filename}"
-                    file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-                    # Save the file
+                    # Use temporary file that will be cleaned up
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{unique_filename}")
+                    file_path = temp_file.name
+                    temp_file.close()
+
+                    # Save the file to temporary location
                     file.save(file_path)
                     saved_files.append(file_path)
                     file_result['saved_path'] = file_path
@@ -829,12 +834,29 @@ def process_files(files, drive_folder_id=None, employee_name=None, cost_center_n
             drive_error = "No Google Drive folder ID provided. Check cost center settings."
             print(f"WARNING: {drive_error}")
 
-        # Return the results
+        # Clean up temporary files after Google Drive upload
+        cleanup_files = []
+        cleanup_files.extend(saved_files)
+        cleanup_files.extend(pdf_files)
+        if merged_pdf:
+            cleanup_files.append(merged_pdf)
+
+        # Remove duplicates and clean up
+        cleanup_files = list(set(cleanup_files))
+        for temp_file in cleanup_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    print(f"🗑️ Cleaned up temporary file: {temp_file}")
+            except Exception as e:
+                print(f"⚠️ Could not clean up {temp_file}: {e}")
+
+        # Return the results (without local file paths since they're deleted)
         result = {
             'success': merged_pdf is not None,
-            'saved_files': saved_files,
-            'pdf_files': pdf_files,
-            'merged_pdf': merged_pdf,
+            'saved_files': [],  # Don't return local paths since files are deleted
+            'pdf_files': [],    # Don't return local paths since files are deleted
+            'merged_pdf': None, # Don't return local path since file is deleted
             'processing_results': processing_results,
             'drive_upload_attempted': drive_upload_attempted
         }
