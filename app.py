@@ -435,11 +435,17 @@ db.init_app(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'index'  # Redirect to index instead of login
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "info"
 
 @login_manager.user_loader
 def load_user(user_id):
-    return EmployeeDetails.query.get(int(user_id))
+    try:
+        return EmployeeDetails.query.get(int(user_id))
+    except Exception as e:
+        print(f"❌ ERROR: Failed to load user {user_id}: {str(e)}")
+        return None
 
 # Configure Flask-Dance with Google OAuth
 # Dynamic OAuth redirect URI based on environment
@@ -654,10 +660,26 @@ def index():
     print("🔍 DEBUG: Index route called")
     print(f"🔍 DEBUG: current_user.is_authenticated: {current_user.is_authenticated}")
     print(f"🔍 DEBUG: current_user: {current_user}")
+    print(f"🔍 DEBUG: Session keys: {list(session.keys())}")
+    print(f"🔍 DEBUG: Session email: {session.get('email')}")
+    print(f"🔍 DEBUG: Session user_info: {session.get('user_info')}")
 
-    # Check if user is logged in using Flask-Login
-    if current_user.is_authenticated:
-        print("🔍 DEBUG: User is authenticated, redirecting to dashboard")
+    # If user appears authenticated but has no email, clear everything
+    if current_user.is_authenticated and not session.get('email'):
+        print("🔍 DEBUG: User authenticated but missing session data, clearing all session data")
+        logout_user()
+        session.clear()
+        flash("Your session has expired. Please log in again.", "info")
+        # Don't redirect, just fall through to show login page
+
+    # Clear any stale session data if user is not authenticated
+    elif not current_user.is_authenticated and ('email' in session or 'user_info' in session):
+        print("🔍 DEBUG: Clearing stale session data")
+        session.clear()
+
+    # Check if user is properly authenticated with session data
+    if current_user.is_authenticated and session.get('email'):
+        print("🔍 DEBUG: User is properly authenticated, redirecting to dashboard")
         return redirect(url_for('dashboard'))
 
     print("🔍 DEBUG: User not authenticated, showing login page")
@@ -1006,6 +1028,12 @@ def update_finance_settings():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    # Double-check authentication - if user is not properly authenticated, redirect to login
+    if not current_user.is_authenticated or not session.get('email'):
+        print("🔍 DEBUG: Dashboard accessed without proper authentication, redirecting to login")
+        session.clear()  # Clear any stale session data
+        return redirect(url_for('index'))
+
     # User is guaranteed to be logged in due to @login_required
 
     # Get employee details from session
@@ -5479,20 +5507,27 @@ def cost_center_admin():
 
 
 
-# Add a before_request handler to check token expiration
+# Add a before_request handler to check authentication and token expiration
 @app.before_request
-def check_token_expiration():
-    """Check if the token is expired before each request"""
-    # Skip for static files and certain routes
-    if request.path.startswith('/static') or request.path in ['/', '/login', '/logout', '/refresh-token']:
+def check_authentication_and_token():
+    """Check authentication and token validity before each request"""
+    # Skip for static files and certain routes (including Google OAuth routes)
+    skip_paths = ['/', '/login', '/logout', '/refresh-token', '/after-login']
+    if (request.path.startswith('/static') or
+        request.path in skip_paths or
+        request.path.startswith('/login/')):  # Skip Google OAuth routes
         return
 
-    # Skip if not authenticated
-    if not current_user.is_authenticated:
-        return
+    # For all other routes, ensure user is properly authenticated
+    if not current_user.is_authenticated or not session.get('email'):
+        print(f"🔍 DEBUG: Unauthenticated access attempt to {request.path}")
+        session.clear()  # Clear any stale session data
+        flash("Please log in to access this page.", "info")
+        return redirect(url_for('index'))
 
-    # Skip if no Google token
+    # Skip token check if no Google token (for basic functionality)
     if not google.authorized:
+        print(f"🔍 DEBUG: No Google token for user {session.get('email')}")
         return
 
     # Check if token is valid
@@ -7082,44 +7117,59 @@ if __name__ == '__main__':
             print(f"Error fetching allocation details: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
-    # Initialize the database
-    with app.app_context():
-        # Don't drop all tables to preserve EPV records
-        # db.drop_all()
-        db.create_all()
-        init_db(app)
-
-        # Add new columns to finance_entry table if they don't exist
+    # Initialize the database with error handling
+    def initialize_database():
+        """Initialize database with proper error handling"""
         try:
-            # Check if transaction_id column exists
-            db.session.execute(db.text("SELECT transaction_id FROM finance_entry LIMIT 1"))
-            print("transaction_id column already exists in finance_entry table")
-        except Exception as e:
-            if "Unknown column" in str(e):
-                print("Adding transaction_id column to finance_entry table")
-                db.session.execute(db.text("ALTER TABLE finance_entry ADD COLUMN transaction_id VARCHAR(100) NULL"))
-                db.session.commit()
+            with app.app_context():
+                print("🔍 DEBUG: Attempting to initialize database...")
+                # Don't drop all tables to preserve EPV records
+                # db.drop_all()
+                db.create_all()
+                init_db(app)
+                print("✅ DEBUG: Database initialized successfully")
 
-        try:
-            # Check if payment_date column exists
-            db.session.execute(db.text("SELECT payment_date FROM finance_entry LIMIT 1"))
-            print("payment_date column already exists in finance_entry table")
-        except Exception as e:
-            if "Unknown column" in str(e):
-                print("Adding payment_date column to finance_entry table")
-                db.session.execute(db.text("ALTER TABLE finance_entry ADD COLUMN payment_date DATETIME NULL"))
-                db.session.commit()
+                # Add new columns to finance_entry table if they don't exist
+                try:
+                    # Check if transaction_id column exists
+                    db.session.execute(db.text("SELECT transaction_id FROM finance_entry LIMIT 1"))
+                    print("transaction_id column already exists in finance_entry table")
+                except Exception as e:
+                    if "Unknown column" in str(e):
+                        print("Adding transaction_id column to finance_entry table")
+                        db.session.execute(db.text("ALTER TABLE finance_entry ADD COLUMN transaction_id VARCHAR(100) NULL"))
+                        db.session.commit()
 
-        # Check if city column exists in EPV table
-        try:
-            # Check if city column exists
-            db.session.execute(db.text("SELECT city FROM epv LIMIT 1"))
-            print("city column already exists in epv table")
+                try:
+                    # Check if payment_date column exists
+                    db.session.execute(db.text("SELECT payment_date FROM finance_entry LIMIT 1"))
+                    print("payment_date column already exists in finance_entry table")
+                except Exception as e:
+                    if "Unknown column" in str(e):
+                        print("Adding payment_date column to finance_entry table")
+                        db.session.execute(db.text("ALTER TABLE finance_entry ADD COLUMN payment_date DATETIME NULL"))
+                        db.session.commit()
+
+                # Check if city column exists in EPV table
+                try:
+                    # Check if city column exists
+                    db.session.execute(db.text("SELECT city FROM epv LIMIT 1"))
+                    print("city column already exists in epv table")
+                except Exception as e:
+                    if "Unknown column" in str(e):
+                        print("Adding city column to epv table")
+                        db.session.execute(db.text("ALTER TABLE epv ADD COLUMN city VARCHAR(50) NULL"))
+                        db.session.commit()
+
         except Exception as e:
-            if "Unknown column" in str(e):
-                print("Adding city column to epv table")
-                db.session.execute(db.text("ALTER TABLE epv ADD COLUMN city VARCHAR(50) NULL"))
-                db.session.commit()
+            print(f"❌ ERROR: Database initialization failed: {str(e)}")
+            print("⚠️  WARNING: Application will continue without database. Some features may not work.")
+            print("💡 HINT: Please check your database connection settings in .env file")
+            return False
+        return True
+
+    # Try to initialize database
+    db_initialized = initialize_database()
 
 
 
